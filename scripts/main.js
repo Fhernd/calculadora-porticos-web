@@ -8,19 +8,7 @@ $(() => {
   $('#btnAgregarNuevoMF').on('click', agregarMF);
   $('#btnCrearCargaPuntual').on('click', crearCargaPuntual)
   $('#btnGuardarMf').on('click', guardarMf);
-  $('#btnGenerarTablaIteracion').on('click', generarTablaIteracion)
-
-  $('input[type=radio][name=excentricaCentrica]').on('change', function () {
-    const centrica = $('.centrica');
-    switch ($(this).val()) {
-      case 'excentrica':
-        centrica.show();
-        break;
-      case 'centrica':
-        centrica.hide();
-        break;
-    }
-  });
+  $('#btnGenerarTablaIteracion').on('click', generarTablaIteracion);
 
   $('#E').focus();
 });
@@ -75,9 +63,17 @@ function agregarElemento(event) {
 function guardarElemento(event) {
   event.preventDefault();
 
+  let B = $('#B').val();
+  let H = $('#H').val();
+
+  if (isEmptyString(B) || isEmptyString(H)) {
+    alertify.alert('La Base y la Altura son campos obligatorios.');
+    return;
+  }
+
   let tipo = $('#elemento').val();
-  let B = parseFloat($('#B').val());
-  let H = parseFloat($('#H').val());
+  B = parseFloat(B);
+  H = parseFloat(H);
 
   let id = data.elementos.filter(e => e.tipo === tipo).length + 1;
   let elemento = new Elemento(id, tipo, B, H);
@@ -102,6 +98,7 @@ function guardarElemento(event) {
   $('.elemento').hide(1000);
 
   actualizarTablaElementos(elemento);
+  $('#E').val(data['E']);
 }
 
 function limpiarCamposElemento() {
@@ -113,13 +110,14 @@ function limpiarCamposElemento() {
 function agregarMF(event) {
   event.preventDefault();
 
-  $('#mf').prop('disabled', true);
+  const mf = $('#mf');
+  mf.prop('disabled', true);
   $('#tipoElemento').prop('disabled', true);
   $(this).prop('disabled', true);
   $('#L').focus();
   $('.mf').show();
 
-  if (existeCargaRepartidaParaMf($('#mf').val())) {
+  if (existeCargaRepartidaParaMf(mf.val())) {
     $('#W').prop('disabled', true);
   }
 }
@@ -132,24 +130,54 @@ function guardarMf(event) {
   let tipoElementoSeleccionado = $('#tipoElemento');
   let mf = mfSeleccionado.val();
   let tipoElemento = tipoElementoSeleccionado.val();
-  let longitud = parseFloat($('#L').val());
-  let cargaRepartida = parseFloat($('#W').val());
+
+  let longitud = $('#L').val();
+  let cargaRepartida = $('#W').val();
+
+  if (isNaNOrNullOrUndefined(longitud) || isNaNOrNullOrUndefined(cargaRepartida)) {
+    alertify.alert('La Longitud y la Carga repartida son campos obligatorios.');
+    return;
+  }
+
+  longitud = parseFloat(longitud);
+  cargaRepartida = parseFloat(cargaRepartida);
 
   let cargasPuntuales = [];
+
+  let continuar = true;
+
   $('.carga-puntual').each((i) => {
-    let valorCargaPuntual = parseFloat($(`input[name="P-${i}"]`).val());
+    let valorCargaPuntual = $(`#P-${i}`).val();
+    if (continuar && (isNaNOrNullOrUndefined(valorCargaPuntual) || isNaNOrNullOrUndefined(cargaRepartida))) {
+      alertify.alert('Todos los campos de Carga puntual son obligatorios.');
+      continuar = false;
+      return;
+    }
+
+    valorCargaPuntual = parseFloat(valorCargaPuntual);
 
     let longitudIzquierda = null;
     let longitudDerecha = null;
     if ($(`input[name="excentricaCentrica-${i}"]:checked`).val() === 'excentrica') {
-      longitudIzquierda = parseFloat($('#a').val());
-      longitudDerecha = parseFloat($('#b').val());
+      let a = $(`#a-${i}`).val();
+      let b = $(`#b-${i}`).val();
+
+      if (continuar && (isNaNOrNullOrUndefined(a) || isNaNOrNullOrUndefined(b))) {
+        alertify.alert('Todos los campos de Longitud Izquierda y Longitud Derecha son obligatorios.');
+        continuar = false;
+        return;
+      }
+
+      longitudIzquierda = parseFloat(a);
+      longitudDerecha = parseFloat(b);
     }
 
     cargasPuntuales.push(new CargaPuntual(valorCargaPuntual, longitudIzquierda, longitudDerecha));
   });
 
-  console.log(cargasPuntuales);
+  if (!continuar) {
+    return;
+  }
 
   let nuevoMf = new MF(mf, tipoElemento, longitud, cargaRepartida);
   nuevoMf.cargasPuntuales = cargasPuntuales;
@@ -164,6 +192,8 @@ function guardarMf(event) {
   $('option:selected', '#mf').remove();
   mfSeleccionado.removeAttr('disabled');
   tipoElementoSeleccionado.removeAttr('disabled');
+
+  alertify.success('Se ha creado un nuevo MF.');
 }
 
 function limpiarCamposMf() {
@@ -212,12 +242,12 @@ function actualizarTablaMfs() {
     let sumaMfs = 0;
 
     if ((!_.isNull(v.mf) && !_.isNaN(v.mf)) && v.cargasPuntuales.length) {
-      const [filaCartaRepartida, MfCargaRepartida] = generarFilaMfConCargaRepartida(v, mcm);
+      const [filaCartaRepartida, MfCargaRepartida] = generarFilaMfConCargaRepartida(v, mcm, v.signo());
       tblMfs.append(filaCartaRepartida);
       sumaMfs = MfCargaRepartida;
 
       v.cargasPuntuales.forEach(e => {
-        const [filaCargaPuntual, MfCargaPuntual] = generarFilaCargaPuntual(e, v.mf, v.longitud, mcm);
+        const [filaCargaPuntual, MfCargaPuntual] = generarFilaCargaPuntual(e, v.mf, v.longitud, mcm, v.signo());
         tblMfs.append(filaCargaPuntual);
         sumaMfs += MfCargaPuntual;
       });
@@ -225,11 +255,11 @@ function actualizarTablaMfs() {
       const ultimaFila = generarFilaSumarizada(v.mf, v.longitud, mcm, sumaMfs);
       tblMfs.append(ultimaFila);
     } else if ((!_.isNull(v.mf) && !_.isNaN(v.mf)) && !v.cargasPuntuales.length) {
-      const [fila, __] = generarFilaMfConCargaRepartida(v, mcm);
+      const [fila, __] = generarFilaMfConCargaRepartida(v, mcm, v.signo());
       tblMfs.append(fila);
     } else if (v.cargasPuntuales.length) {
       let e = v.cargasPuntuales[0];
-      const [filaCargaPuntual, __] = generarFilaCargaPuntual(e, v.mf, v.longitud, mcm);
+      const [filaCargaPuntual, __] = generarFilaCargaPuntual(e, v.mf, v.longitud, mcm, v.signo());
       tblMfs.append(filaCargaPuntual);
     }
   });
@@ -237,7 +267,7 @@ function actualizarTablaMfs() {
   tblMfs.DataTable();
 }
 
-function generarFilaMfConCargaRepartida(mf, mcm) {
+function generarFilaMfConCargaRepartida(mf, mcm, signo) {
   let row = $('<tr>');
   row.append($(`<td>${mf.mf}</td>`));
   row.append($(`<td>${mf.cargaRepartida}</td>`));
@@ -246,9 +276,9 @@ function generarFilaMfConCargaRepartida(mf, mcm) {
   row.append('<td>');
   row.append('<td>');
 
-  const Mf = mf.cargaRepartida * Math.pow(mf.longitud, 3) / 12;
+  const Mf = signo * mf.cargaRepartida * Math.pow(mf.longitud, 2) / 12;
 
-  row.append(`<td>${_.round(Mf, 2)}</td>`);
+  row.append(`<td>${establecerAlMenosNDecimales(_.round(Mf, 3))}</td>`);
   row.append(`<td>${mcm}</td>`);
   row.append(`<td>${1}</td>`);
   row.append(`<td>${1/mf.longitud}</td>`);
@@ -257,18 +287,24 @@ function generarFilaMfConCargaRepartida(mf, mcm) {
   return [row, Mf];
 }
 
-function generarFilaCargaPuntual(cargaPuntual, tipoMf, longitud, mcm) {
+function generarFilaCargaPuntual(cargaPuntual, tipoMf, longitud, mcm, signo) {
   let row = $('<tr>');
   row.append($(`<td>${tipoMf}</td>`));
   row.append('<td>');
-  row.append(`<td>${cargaPuntual.valor}</td>`);
+  row.append(`<td>${cargaPuntual['valor']}</td>`);
   row.append(`<td>${longitud}</td>`);
   row.append($(`<td>${!_.isNull(cargaPuntual.longitudIzquierda) && !_.isNaN(cargaPuntual.longitudIzquierda) ? cargaPuntual.longitudIzquierda : ''}</td>`));
   row.append($(`<td>${!_.isNull(cargaPuntual.longitudDerecha) && !_.isNaN(cargaPuntual.longitudDerecha) ? cargaPuntual.longitudDerecha : ''}</td>`));
 
-  let Mf = cargaPuntual.valor * longitud / 8;
+  let Mf = signo * cargaPuntual.valor * longitud / 8;
 
-  row.append(`<td>${_.round(Mf, 3)}</td>`);
+  if (cargaPuntual.esExcentrica() && signo > 0) {
+    Mf = signo * cargaPuntual.valor * cargaPuntual.longitudIzquierda * Math.pow(cargaPuntual.longitudDerecha, 2) / Math.pow(longitud, 2);
+  } else if (cargaPuntual.esExcentrica()) {
+    Mf = signo * cargaPuntual.valor * cargaPuntual.longitudDerecha * Math.pow(cargaPuntual.longitudIzquierda, 2) / Math.pow(longitud, 2);
+  }
+
+  row.append(`<td>${establecerAlMenosNDecimales(_.round(Mf, 3))}</td>`);
   row.append(`<td>${mcm}</td>`);
   row.append(`<td>${1}</td>`);
   row.append(`<td>${1/longitud}</td>`);
@@ -286,7 +322,7 @@ function generarFilaSumarizada(tipoMf, longitud, mcm, sumaMfs) {
   row.append('<td></td>');
   row.append('<td></td>');
 
-  row.append(`<td>${_.round(sumaMfs, 2)}</td>`);
+  row.append(`<td>${establecerAlMenosNDecimales(_.round(sumaMfs, 2))}</td>`);
   row.append(`<td>${mcm}</td>`);
   row.append(`<td>${1}</td>`);
   row.append(`<td>${1/longitud}</td>`);
@@ -305,25 +341,22 @@ function crearCargaPuntual(event) {
 
   let template = (n > 0 ? '<hr>' : '' )+ `
   <div class="carga-puntual">
-        <!-- Text input-->
         <div class="form-group row mf">
           <label class="col-md-4 control-label">Carga puntual (P)</label>
           <div class="col-md-5">
             <label>
-              <input name="P-${n}" type="text" placeholder="Carga puntual" class="form-control input-md"
+              <input name="P-${n}" id="P-${n}" type="number" placeholder="Carga puntual" class="form-control input-md"
                      required="">
             </label>
 
           </div>
         </div>
 
-        <!-- Multiple Radios (inline) -->
         <div class="form-group row mf">
           <label class="col-md-4 control-label"></label>
           <div class="col-md-4">
             <label class="radio-inline">
-              <input type="radio" name="excentricaCentrica-${n}" value="excentrica"
-                     checked="checked">
+              <input type="radio" name="excentricaCentrica-${n}" value="excentrica" checked="checked">
               Excéntrica
             </label>
             <label class="radio-inline">
@@ -333,25 +366,22 @@ function crearCargaPuntual(event) {
           </div>
         </div>
 
-
-        <!-- Text input-->
-        <div class="form-group row mf centrica">
+        <div class="form-group row mf centrica-${n}">
           <label class="col-md-4 control-label">Longitud izquierda (a)</label>
           <div class="col-md-5">
             <label>
-              <input name="a-${n}" type="text" placeholder="Longitud izquierda" class="form-control input-md"
+              <input name="a-${n}" id="a-${n}" type="number" placeholder="Longitud izquierda" class="form-control input-md"
                      required="">
             </label>
 
           </div>
         </div>
 
-        <!-- Text input-->
-        <div class="form-group row mf centrica">
+        <div class="form-group row mf centrica-${n}">
           <label class="col-md-4 control-label">Longitud derecha (b)</label>
           <div class="col-md-5">
             <label>
-              <input name="b-${n}" type="text" placeholder="Longitud derecha" class="form-control input-md"
+              <input name="b-${n}" id="b-${n}" type="number" placeholder="Longitud derecha" class="form-control input-md"
                      required="">
             </label>
           </div>
@@ -360,6 +390,20 @@ function crearCargaPuntual(event) {
   `;
 
   $('#cargasPuntuales').append(template);
+
+  $(`input[type=radio][name=excentricaCentrica-${n}]`).on('change', function () {
+    const centrica = $(`.centrica-${n}`);
+    switch ($(this).val()) {
+      case 'excentrica':
+        centrica.show();
+        break;
+      case 'centrica':
+        centrica.hide();
+        break;
+    }
+  });
+
+  $(`P-${n}`).focus();
 }
 
 function generarTablaIteracion(event) {
@@ -391,12 +435,6 @@ function generarTablaIteracion(event) {
   const divResultado = $('#resultado');
   divResultado.empty();
   divResultado.append(table);
-  // $('#tblResultado').DataTable({
-  //   paging: false,
-  //   ordering: false,
-  //   info: false,
-  //   searching: false
-  // });
 }
 
 function generarEncabezado() {
