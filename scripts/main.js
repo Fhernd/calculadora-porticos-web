@@ -132,15 +132,17 @@ function guardarMf(event) {
   let tipoElemento = tipoElementoSeleccionado.val();
 
   let longitud = $('#L').val();
-  let cargaRepartida = $('#W').val();
+  let cargaRepartida = $('#W').val().trim() || null;
 
-  if (isNaNOrNullOrUndefined(longitud) || isNaNOrNullOrUndefined(cargaRepartida)) {
+  if (isNaNOrNullOrUndefined(longitud)) {
     alertify.alert('La Longitud y la Carga repartida son campos obligatorios.');
     return;
   }
 
   longitud = parseFloat(longitud);
-  cargaRepartida = parseFloat(cargaRepartida);
+  if (cargaRepartida) {
+    cargaRepartida = parseFloat(cargaRepartida);
+  }
 
   let cargasPuntuales = [];
 
@@ -148,7 +150,7 @@ function guardarMf(event) {
 
   $('.carga-puntual').each((i) => {
     let valorCargaPuntual = $(`#P-${i}`).val();
-    if (continuar && (isNaNOrNullOrUndefined(valorCargaPuntual) || isNaNOrNullOrUndefined(cargaRepartida))) {
+    if (continuar && isNaNOrNullOrUndefined(valorCargaPuntual)) {
       alertify.alert('Todos los campos de Carga puntual son obligatorios.');
       continuar = false;
       return;
@@ -227,8 +229,6 @@ function actualizarTablaElementos(elemento) {
 function encontrarMCM() {
   let longitudes = _.values(_.mapValues(data.mfs, 'longitud'));
 
-  console.log(longitudes);
-
   return calcularMinimoComunMultiplo(longitudes);
 }
 
@@ -238,29 +238,33 @@ function actualizarTablaMfs() {
   let tblMfs = $('#tblMfs');
   $('#tblMfs > tbody').empty();
 
-  data.mfs.forEach(v => {
+  data.mfs.forEach(e => {
     let sumaMfs = 0;
 
-    if ((!_.isNull(v.mf) && !_.isNaN(v.mf)) && v.cargasPuntuales.length) {
-      const [filaCartaRepartida, MfCargaRepartida] = generarFilaMfConCargaRepartida(v, mcm, v.signo());
+    if (!isNaNOrNullOrUndefined(e.cargaRepartida) && e.cargasPuntuales.length) {
+
+      const [filaCartaRepartida, MfCargaRepartida] = generarFilaMfConCargaRepartida(e, mcm, e.signo());
       tblMfs.append(filaCartaRepartida);
       sumaMfs = MfCargaRepartida;
 
-      v.cargasPuntuales.forEach(e => {
-        const [filaCargaPuntual, MfCargaPuntual] = generarFilaCargaPuntual(e, v.mf, v.longitud, mcm, v.signo());
+      e.cargasPuntuales.forEach(f => {
+        const [filaCargaPuntual, MfCargaPuntual] = generarFilaCargaPuntual(f, e.mf, e.longitud, mcm, e.signo());
         tblMfs.append(filaCargaPuntual);
         sumaMfs += MfCargaPuntual;
       });
 
-      const ultimaFila = generarFilaSumarizada(v.mf, v.longitud, mcm, sumaMfs);
+      const ultimaFila = generarFilaSumarizada(e.mf, e.longitud, mcm, sumaMfs);
       tblMfs.append(ultimaFila);
-    } else if ((!_.isNull(v.mf) && !_.isNaN(v.mf)) && !v.cargasPuntuales.length) {
-      const [fila, __] = generarFilaMfConCargaRepartida(v, mcm, v.signo());
+    } else if (!isNaNOrNullOrUndefined(e.cargaRepartida) && !e.cargasPuntuales.length) {
+      const [fila, __] = generarFilaMfConCargaRepartida(e, mcm, e.signo());
       tblMfs.append(fila);
-    } else if (v.cargasPuntuales.length) {
-      let e = v.cargasPuntuales[0];
-      const [filaCargaPuntual, __] = generarFilaCargaPuntual(e, v.mf, v.longitud, mcm, v.signo());
+    } else if (isNaNOrNullOrUndefined(e.cargaRepartida) && e.cargasPuntuales.length) {
+      let f = e.cargasPuntuales[0];
+      const [filaCargaPuntual, __] = generarFilaCargaPuntual(f, e.mf, e.longitud, mcm, e.signo());
       tblMfs.append(filaCargaPuntual);
+    } else if (isNaNOrNullOrUndefined(e.cargaRepartida) && !e.cargasPuntuales.length) {
+      const ultimaFila = generarFilaSumarizada(e.mf, e.longitud, mcm, 0);
+      tblMfs.append(ultimaFila);
     }
   });
 
@@ -278,11 +282,11 @@ function generarFilaMfConCargaRepartida(mf, mcm, signo) {
 
   const Mf = signo * mf.cargaRepartida * Math.pow(mf.longitud, 2) / 12;
 
-  row.append(`<td>${establecerAlMenosNDecimales(_.round(Mf, 3))}</td>`);
+  row.append(`<td>${establecerAlMenosNDecimales(Mf)}</td>`);
   row.append(`<td>${mcm}</td>`);
   row.append(`<td>${1}</td>`);
-  row.append(`<td>${1/mf.longitud}</td>`);
-  row.append(`<td>${1/mf.longitud * mcm}</td>`);
+  row.append(`<td>${1 / mf.longitud}</td>`);
+  row.append(`<td>${1 / mf.longitud * mcm}</td>`);
 
   return [row, Mf];
 }
@@ -304,11 +308,11 @@ function generarFilaCargaPuntual(cargaPuntual, tipoMf, longitud, mcm, signo) {
     Mf = signo * cargaPuntual.valor * cargaPuntual.longitudDerecha * Math.pow(cargaPuntual.longitudIzquierda, 2) / Math.pow(longitud, 2);
   }
 
-  row.append(`<td>${establecerAlMenosNDecimales(_.round(Mf, 3))}</td>`);
+  row.append(`<td>${establecerAlMenosNDecimales(Mf)}</td>`);
   row.append(`<td>${mcm}</td>`);
   row.append(`<td>${1}</td>`);
-  row.append(`<td>${1/longitud}</td>`);
-  row.append(`<td>${1/longitud * mcm}</td>`);
+  row.append(`<td>${establecerAlMenosNDecimales(1 / longitud)}</td>`);
+  row.append(`<td>${1 / longitud * mcm}</td>`);
 
   return [row, Mf];
 }
@@ -322,11 +326,11 @@ function generarFilaSumarizada(tipoMf, longitud, mcm, sumaMfs) {
   row.append('<td></td>');
   row.append('<td></td>');
 
-  row.append(`<td>${establecerAlMenosNDecimales(_.round(sumaMfs, 2))}</td>`);
+  row.append(`<td>${establecerAlMenosNDecimales(sumaMfs)}</td>`);
   row.append(`<td>${mcm}</td>`);
   row.append(`<td>${1}</td>`);
-  row.append(`<td>${1/longitud}</td>`);
-  row.append(`<td>${1/longitud * mcm}</td>`);
+  row.append(`<td>${establecerAlMenosNDecimales(1 / longitud)}</td>`);
+  row.append(`<td>${1 / longitud * mcm}</td>`);
 
   return row;
 }
@@ -339,7 +343,7 @@ function crearCargaPuntual(event) {
   event.preventDefault();
   let n = $('.carga-puntual').length;
 
-  let template = (n > 0 ? '<hr>' : '' )+ `
+  let template = (n > 0 ? '<hr>' : '') + `
   <div class="carga-puntual">
         <div class="form-group row mf">
           <label class="col-md-4 control-label">Carga puntual (P)</label>
@@ -438,7 +442,7 @@ function generarTablaIteracion(event) {
 }
 
 function generarEncabezado() {
-  let letras = [... new Set(data.mfs.map(e => _.head(e.mf)).sort())];
+  let letras = [...new Set(data.mfs.map(e => _.head(e.mf)).sort())];
 
   return letras.map(e => {
 
@@ -448,6 +452,6 @@ function generarEncabezado() {
 }
 
 function generarSubencabezado() {
-  let letras = [... new Set(data.mfs.map(e => _.head(e.mf)).sort())];
+  let letras = [...new Set(data.mfs.map(e => _.head(e.mf)).sort())];
   return letras.map(l => data.mfs.filter(f => _.head(f.mf) === l).map(m => `<td style="text-align: center;">${m.mf}</td>`).join('')).join('');
 }

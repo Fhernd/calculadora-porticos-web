@@ -12,10 +12,8 @@ class Elemento {
 class MF {
   constructor(mf, tipoElemento, longitud, cargaRepartida) {
     this.mf = mf;
-    this.tipoElemento = tipoElemento;
     this.longitud = longitud;
     this.cargaRepartida = cargaRepartida;
-    this.fechaHora = moment().format('YYYY-MM-DDTHH:mm:ss.SSS');
     this.cargasPuntuales = [];
   }
 
