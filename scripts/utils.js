@@ -12,14 +12,16 @@ class Elemento {
 class MF {
   constructor(mf, tipoElemento, longitud, cargaRepartida) {
     this.mf = mf;
+    this.tipoElemento = tipoElemento;
     this.longitud = longitud;
     this.cargaRepartida = cargaRepartida;
     this.cargasPuntuales = [];
-  }
-
-  signo() {
-    const mf = this.mf.replace('-', '');
-    return mf.charCodeAt(0) < mf.charCodeAt(1) ? 1 : -1;
+    this.signo = this.mf.replace('-', '');
+    this.signo = this.signo.charCodeAt(0) < this.signo.charCodeAt(1) ? 1 : -1;
+    this.mcm = null;
+    this.un = null;
+    this.il = null;
+    this.k = null;
   }
 }
 
@@ -28,10 +30,7 @@ class CargaPuntual {
     this.valor = valor;
     this.longitudIzquierda = longitudIzquierda;
     this.longitudDerecha = longitudDerecha;
-  }
-
-  esExcentrica() {
-    return Boolean(this.longitudIzquierda);
+    this.esExcentrica = Boolean(this.longitudIzquierda);
   }
 }
 

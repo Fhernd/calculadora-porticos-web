@@ -1,4 +1,5 @@
 let data = {};
+let tblMfs = null;
 
 $(() => {
   init();
@@ -22,7 +23,13 @@ function init() {
   $('.hr-elementos').hide();
   $('.hr-mfs').show();
   $('.row-mfs').show();
-  $('#tblMfs').DataTable({
+  tblMfs = $('#tblMfs').DataTable({
+    paging: false,
+    ordering: false,
+    info: false,
+    searching: false
+  });
+  $('#tblCalculosElasticidad').DataTable({
     paging: false,
     ordering: false,
     info: false,
@@ -71,12 +78,12 @@ function guardarElemento(event) {
     return;
   }
 
-  let tipo = $('#elemento').val();
+  const tipo = $('#elemento').val();
   B = parseFloat(B);
   H = parseFloat(H);
 
-  let id = data.elementos.filter(e => e.tipo === tipo).length + 1;
-  let elemento = new Elemento(id, tipo, B, H);
+  const id = data.elementos.filter(e => e.tipo === tipo).length + 1;
+  const elemento = new Elemento(id, tipo, B, H);
 
   data.elementos.push(elemento);
 
@@ -99,6 +106,7 @@ function guardarElemento(event) {
 
   actualizarTablaElementos(elemento);
   $('#E').val(data['E']);
+  $('#btnAgregarElemento').removeAttr('disabled');
 }
 
 function limpiarCamposElemento() {
@@ -127,9 +135,9 @@ function guardarMf(event) {
 
   $(this).prop('disabled', false);
   let mfSeleccionado = $('#mf');
-  let tipoElementoSeleccionado = $('#tipoElemento');
+  const tipoElementoSeleccionado = $('#tipoElemento');
   let mf = mfSeleccionado.val();
-  let tipoElemento = tipoElementoSeleccionado.val();
+  const tipoElemento = tipoElementoSeleccionado.val();
 
   let longitud = $('#L').val();
   let cargaRepartida = $('#W').val().trim() || null;
@@ -183,10 +191,12 @@ function guardarMf(event) {
 
   let nuevoMf = new MF(mf, tipoElemento, longitud, cargaRepartida);
   nuevoMf.cargasPuntuales = cargasPuntuales;
+  nuevoMf.un = obtenerUn(tipoElemento);
 
   data.mfs.push(nuevoMf);
 
   actualizarTablaMfs();
+  actualizarTablaCalculosElasticidad();
 
   $('.mf').hide();
   $('#btnAgregarNuevoMF').removeAttr('disabled');
@@ -205,20 +215,22 @@ function limpiarCamposMf() {
 }
 
 function actualizarTablaElementos(elemento) {
-  let nuevoElementoTr = $('<tr>');
+  const nuevoElementoTr = $('<tr>');
+
   nuevoElementoTr.append(`<td>${elemento.tipo === 'vg' ? 'Viga-' + elemento.id : 'Columna-' + elemento.id}</td>`);
   nuevoElementoTr.append(`<td>${elemento.B}</td>`);
   nuevoElementoTr.append(`<td>${elemento.H}</td>`);
-  let I = (1 / 2) * elemento.B * Math.pow(elemento.H, 2);
-  nuevoElementoTr.append(`<td>${I}</td>`);
+
+  let I = (1 / 12) * elemento.B * Math.pow(elemento.H, 3);
   elemento.I = I;
+  nuevoElementoTr.append(`<td>${I}</td>`);
 
   if (data.elementos.length === 1) {
     nuevoElementoTr.append(`<td>${1}</td>`);
     elemento.UN = 1;
   } else {
-    let elementoPenultimo = _.nth(data.elementos, -2);
-    let nuevoUN = I * elementoPenultimo.UN / elementoPenultimo.I;
+    const elementoPenultimo = _.nth(data.elementos, -2);
+    const nuevoUN = I * elementoPenultimo.UN / elementoPenultimo.I;
     elemento.UN = nuevoUN;
     nuevoElementoTr.append(`<td>${nuevoUN}</td>`);
   }
@@ -233,37 +245,38 @@ function encontrarMCM() {
 }
 
 function actualizarTablaMfs() {
-  let mcm = encontrarMCM();
+  const mcm = encontrarMCM();
 
   let tblMfs = $('#tblMfs');
   $('#tblMfs > tbody').empty();
 
   data.mfs.forEach(e => {
     let sumaMfs = 0;
+    e.mcm = mcm;
 
     if (!isNaNOrNullOrUndefined(e.cargaRepartida) && e.cargasPuntuales.length) {
 
-      const [filaCartaRepartida, MfCargaRepartida] = generarFilaMfConCargaRepartida(e, mcm, e.signo());
+      const [filaCartaRepartida, MfCargaRepartida] = generarFilaMfConCargaRepartida(e, mcm, e.signo);
       tblMfs.append(filaCartaRepartida);
       sumaMfs = MfCargaRepartida;
 
       e.cargasPuntuales.forEach(f => {
-        const [filaCargaPuntual, MfCargaPuntual] = generarFilaCargaPuntual(f, e.mf, e.longitud, mcm, e.signo());
+        const [filaCargaPuntual, MfCargaPuntual] = generarFilaCargaPuntual(e, f, e.mf, e.longitud, mcm, e.signo);
         tblMfs.append(filaCargaPuntual);
         sumaMfs += MfCargaPuntual;
       });
 
-      const ultimaFila = generarFilaSumarizada(e.mf, e.longitud, mcm, sumaMfs);
+      const ultimaFila = generarFilaSumarizada(e, e.mf, e.longitud, mcm, sumaMfs);
       tblMfs.append(ultimaFila);
     } else if (!isNaNOrNullOrUndefined(e.cargaRepartida) && !e.cargasPuntuales.length) {
-      const [fila, __] = generarFilaMfConCargaRepartida(e, mcm, e.signo());
+      const [fila, __] = generarFilaMfConCargaRepartida(e, mcm, e.signo);
       tblMfs.append(fila);
     } else if (isNaNOrNullOrUndefined(e.cargaRepartida) && e.cargasPuntuales.length) {
       let f = e.cargasPuntuales[0];
-      const [filaCargaPuntual, __] = generarFilaCargaPuntual(f, e.mf, e.longitud, mcm, e.signo());
+      const [filaCargaPuntual, __] = generarFilaCargaPuntual(e, f, e.mf, e.longitud, mcm, e.signo);
       tblMfs.append(filaCargaPuntual);
     } else if (isNaNOrNullOrUndefined(e.cargaRepartida) && !e.cargasPuntuales.length) {
-      const ultimaFila = generarFilaSumarizada(e.mf, e.longitud, mcm, 0);
+      const ultimaFila = generarFilaSumarizada(e, e.mf, e.longitud, mcm, 0);
       tblMfs.append(ultimaFila);
     }
   });
@@ -280,18 +293,24 @@ function generarFilaMfConCargaRepartida(mf, mcm, signo) {
   row.append('<td>');
   row.append('<td>');
 
-  const Mf = signo * mf.cargaRepartida * Math.pow(mf.longitud, 2) / 12;
+  let denominador = 12;
+
+  if (mf.mf === 'A-B') {
+    denominador = 30;
+  } else if (mf.mf === 'B-A') {
+    denominador = 20;
+  }
+
+  const Mf = signo * mf.cargaRepartida * Math.pow(mf.longitud, 2) / denominador;
 
   row.append(`<td>${establecerAlMenosNDecimales(Mf)}</td>`);
-  row.append(`<td>${mcm}</td>`);
-  row.append(`<td>${1}</td>`);
-  row.append(`<td>${1 / mf.longitud}</td>`);
-  row.append(`<td>${1 / mf.longitud * mcm}</td>`);
+
+  agregarColumnasComputadasMfs(row, mcm, mf);
 
   return [row, Mf];
 }
 
-function generarFilaCargaPuntual(cargaPuntual, tipoMf, longitud, mcm, signo) {
+function generarFilaCargaPuntual(mf, cargaPuntual, tipoMf, longitud, mcm, signo) {
   let row = $('<tr>');
   row.append($(`<td>${tipoMf}</td>`));
   row.append('<td>');
@@ -302,22 +321,20 @@ function generarFilaCargaPuntual(cargaPuntual, tipoMf, longitud, mcm, signo) {
 
   let Mf = signo * cargaPuntual.valor * longitud / 8;
 
-  if (cargaPuntual.esExcentrica() && signo > 0) {
+  if (cargaPuntual.esExcentrica && signo > 0) {
     Mf = signo * cargaPuntual.valor * cargaPuntual.longitudIzquierda * Math.pow(cargaPuntual.longitudDerecha, 2) / Math.pow(longitud, 2);
-  } else if (cargaPuntual.esExcentrica()) {
+  } else if (cargaPuntual.esExcentrica) {
     Mf = signo * cargaPuntual.valor * cargaPuntual.longitudDerecha * Math.pow(cargaPuntual.longitudIzquierda, 2) / Math.pow(longitud, 2);
   }
 
   row.append(`<td>${establecerAlMenosNDecimales(Mf)}</td>`);
-  row.append(`<td>${mcm}</td>`);
-  row.append(`<td>${1}</td>`);
-  row.append(`<td>${establecerAlMenosNDecimales(1 / longitud)}</td>`);
-  row.append(`<td>${1 / longitud * mcm}</td>`);
+
+  agregarColumnasComputadasMfs(row, mcm, mf);
 
   return [row, Mf];
 }
 
-function generarFilaSumarizada(tipoMf, longitud, mcm, sumaMfs) {
+function generarFilaSumarizada(mf, tipoMf, longitud, mcm, sumaMfs) {
   let row = $('<tr>');
   row.append($(`<td>${tipoMf}</td>`));
   row.append('<td>');
@@ -327,12 +344,19 @@ function generarFilaSumarizada(tipoMf, longitud, mcm, sumaMfs) {
   row.append('<td></td>');
 
   row.append(`<td>${establecerAlMenosNDecimales(sumaMfs)}</td>`);
-  row.append(`<td>${mcm}</td>`);
-  row.append(`<td>${1}</td>`);
-  row.append(`<td>${establecerAlMenosNDecimales(1 / longitud)}</td>`);
-  row.append(`<td>${1 / longitud * mcm}</td>`);
+
+  agregarColumnasComputadasMfs(row, mcm, mf);
 
   return row;
+}
+
+function agregarColumnasComputadasMfs(row, mcm, mf) {
+  mf.il = mf.un / mf.longitud;
+  mf.k = mf.il * mcm;
+  row.append(`<td>${mcm}</td>`);
+  row.append(`<td>${establecerAlMenosNDecimales(mf.un)}</td>`);
+  row.append(`<td>${establecerAlMenosNDecimales(mf.il)}</td>`);
+  row.append(`<td>${establecerAlMenosNDecimales(mf.k)}</td>`);
 }
 
 function existeCargaRepartidaParaMf(nombreMf) {
@@ -416,8 +440,11 @@ function generarTablaIteracion(event) {
   let encabezado = '<td></td>' + generarEncabezado();
   let subEncabezado = '<td></td>' + generarSubencabezado();
 
-  let filaK = '<td>K</td>' + _.range(data.mfs.length).map(() => `<td>${_.round(_.random(5, 60, true), 2)}</td>`);
-  let filaFD = '<td>F.D</td>' + _.range(data.mfs.length).map(() => `<td>${_.round(_.random(0, 1, true))}</td>`);
+  const tablaMfs = crearTablaMfs();
+
+  const [filaK, valoresK] = crearFilaK(tablaMfs);
+  const [filaFD, valoresFilaFD] = crearFilaFD(valoresK);
+  console.log(valoresFilaFD);
 
   let iteraciones = _.range(1, 16).map((i) => {
     const fila1Iteracion = _.range(data.mfs.length).map(() => `<td>${_.round(_.random(0, 13, true))}</td>`).join('')
@@ -431,14 +458,70 @@ function generarTablaIteracion(event) {
   let tableBody = $('<tbody>');
   tableBody.append(`<tr>${encabezado}</tr>`);
   tableBody.append(`<tr>${subEncabezado}</tr>`);
-  tableBody.append(`<tr>${filaK}</tr>`);
-  tableBody.append(`<tr>${filaFD}</tr>`);
+  tableBody.append(`<tr><td></td>${filaK}</tr>`);
+  tableBody.append(`<tr><td>F.D</td>${filaFD}</tr>`);
   tableBody.append(iteraciones);
 
   table.append(tableBody);
   const divResultado = $('#resultado');
   divResultado.empty();
   divResultado.append(table);
+}
+
+function crearFilaFD(valoresK) {
+  const valoresFilaFD = {};
+
+  const filaFD = _.map(_.keys(valoresK), k => {
+    valoresFilaFD[k] = [];
+    const data = valoresK[k];
+    const suma = _.sum(data)
+
+    if (data.length === 1) {
+      valoresFilaFD[k].push(0);
+
+      return '<td>0.000</td>';
+    }
+
+    return _.map(data, d => {
+      const resultado = d / suma;
+      valoresFilaFD[k].push(resultado);
+      return `<td>${establecerAlMenosNDecimales(resultado)}</td>`;
+    }).join('');
+  }).join('');
+
+  return [filaFD, valoresFilaFD];
+}
+
+function crearFilaK(tablaMfs) {
+  const letras = [...new Set(data.mfs.map(e => _.head(e.mf)).sort())];
+  const grupos = _.groupBy(data.mfs, mf => mf.mf[0]);
+
+  let valoresK = {};
+
+  const filaK = _.map(letras, l => {
+    valoresK[l] = [];
+    return _.map(_.sortBy(grupos[l], f => f.mf), e => {
+      const mf = _.findLast(tablaMfs, g => g['MF'] === e.mf);
+      valoresK[l].push(mf['K']);
+      return `<td style="text-align: center;">${mf['K']}</td>`;
+    }).join('');
+  }).join('');
+
+  return [filaK, valoresK];
+}
+
+function crearTablaMfs() {
+  const tablaMfs = parseTable(document.querySelector('#tblMfs'));
+
+  tablaMfs.forEach(e => {
+    _.each(_.keys(e), k => {
+      if (k !== 'MF') {
+        e[k] = _.toNumber(e[k]);
+      }
+    });
+  });
+
+  return tablaMfs;
 }
 
 function generarEncabezado() {
@@ -452,6 +535,53 @@ function generarEncabezado() {
 }
 
 function generarSubencabezado() {
-  let letras = [...new Set(data.mfs.map(e => _.head(e.mf)).sort())];
-  return letras.map(l => data.mfs.filter(f => _.head(f.mf) === l).map(m => `<td style="text-align: center;">${m.mf}</td>`).join('')).join('');
+  const letras = [...new Set(data.mfs.map(e => _.head(e.mf)).sort())];
+  const grupos = _.groupBy(data.mfs, mf => mf.mf[0]);
+
+  return _.map(letras, l => {
+    return _.map(_.sortBy(grupos[l], f => f.mf), e => {
+      return `<td style="text-align: center;">${e.mf}</td>`;
+    }).join('');
+  }).join('');
 }
+
+function actualizarTablaCalculosElasticidad() {
+  const tblCalculosElasticidad = $('#tblCalculosElasticidad');
+  $(tblCalculosElasticidad).find('tbody').empty();
+
+  const mcm = encontrarMCM();
+  console.log('123');
+  for (const mf of data.mfs) {
+    console.log(mf);
+    const row = $('<tr>');
+
+    row.append(`<td>${mf.mf}</td>`);
+    row.append(`<td>${data.E}</td>`);
+
+    const I = '';
+
+    row.append(`<td>${I}</td>`);
+    row.append(`<td>${mf.longitud}</td>`);
+    row.append(`<td></td>`);
+    row.append(`<td></td>`);
+
+    let mfResultado = '';
+
+    if (I) {
+      mfResultado = '';
+    }
+    row.append(`<td>${mfResultado}</td>`);
+
+    row.append(`<td>${mcm}</td>`);
+    row.append(`<td>${1}</td>`);
+    row.append(`<td>${1}</td>`);
+    row.append(`<td>${1}</td>`);
+
+    tblCalculosElasticidad.append(row);
+  }
+}
+
+function obtenerUn(tipoElemento) {
+  return _.find(data.elementos, e => `${e.tipo}${e.id}` === tipoElemento)['UN'];
+}
+
