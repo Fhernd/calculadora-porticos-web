@@ -444,7 +444,12 @@ function generarTablaIteracion(event) {
 
   const [filaK, valoresK] = crearFilaK(tablaMfs);
   const [filaFD, valoresFilaFD] = crearFilaFD(valoresK);
-  console.log(valoresFilaFD);
+
+  let iteracionesDatos = [];
+  const primerIteracion = {encabezado: null, fila: null};
+
+  const [filaEncabezado, filaValoresPrimeraIteracion] = crearEncabezadoPrimeraIteracion(tablaMfs);
+  const filaPrimeraIteracion = crearFilaPrimeraIteracion(filaValoresPrimeraIteracion, valoresFilaFD);
 
   let iteraciones = _.range(1, 16).map((i) => {
     const fila1Iteracion = _.range(data.mfs.length).map(() => `<td>${_.round(_.random(0, 13, true))}</td>`).join('')
@@ -458,14 +463,50 @@ function generarTablaIteracion(event) {
   let tableBody = $('<tbody>');
   tableBody.append(`<tr>${encabezado}</tr>`);
   tableBody.append(`<tr>${subEncabezado}</tr>`);
-  tableBody.append(`<tr><td></td>${filaK}</tr>`);
+  tableBody.append(`<tr><td>K</td>${filaK}</tr>`);
   tableBody.append(`<tr><td>F.D</td>${filaFD}</tr>`);
-  tableBody.append(iteraciones);
+  tableBody.append(`<tr><td rowspan="2">Iteración</td>>${filaEncabezado}`);
+  tableBody.append(`<tr>${filaPrimeraIteracion}</tr>`);
 
   table.append(tableBody);
   const divResultado = $('#resultado');
   divResultado.empty();
   divResultado.append(table);
+}
+
+function crearFilaPrimeraIteracion(filaValoresPrimeraIteracion, valoresFilaFD) {
+  const letras = [...new Set(data.mfs.map(e => _.head(e.mf)).sort())];
+
+  return _.map(letras, l => {
+    const valores = filaValoresPrimeraIteracion[l];
+    const suma = _.sum(valores);
+
+    console.log(valores, suma);
+
+    _.map(valoresFilaFD[l], d => {
+      return `<td style="text-align: center;">${suma * d}</td>`;
+    }).join('');
+  }).join('');
+}
+
+function crearEncabezadoPrimeraIteracion(tablaMfs) {
+  const letras = [...new Set(data.mfs.map(e => _.head(e.mf)).sort())];
+  const grupos = _.groupBy(data.mfs, mf => mf.mf[0]);
+
+  let valoresIteracion = {};
+
+  const filaIteracion = _.map(letras, l => {
+    valoresIteracion[l] = [];
+    return _.map(_.sortBy(grupos[l], f => f.mf), e => {
+
+      const mf = _.findLast(tablaMfs, g => g['MF'] === e.mf);
+      valoresIteracion[l].push(mf['K']);
+
+      return `<td style="text-align: center;">${mf['Mf']}</td>`;
+    }).join('');
+  }).join('');
+
+  return [filaIteracion, valoresIteracion];
 }
 
 function crearFilaFD(valoresK) {
