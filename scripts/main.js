@@ -1,6 +1,8 @@
 let data = {};
 let tblMfs = null;
+let tblMfsCalculosElasticidad = null;
 let sumatoriasMfs = null;
+let sumatoriasMfsModulosElasticidad = null;
 
 $(() => {
   init();
@@ -10,7 +12,7 @@ $(() => {
   $('#btnAgregarNuevoMF').on('click', agregarMF);
   $('#btnCrearCargaPuntual').on('click', crearCargaPuntual)
   $('#btnGuardarMf').on('click', guardarMf);
-  $('#btnGenerarTablaIteracion').on('click', generarTablaIteracion);
+  $('#btnGenerarTablaIteracion').on('click', generarTablasIteraciones);
 
   $('#E').focus();
 });
@@ -30,7 +32,7 @@ function init() {
     info: false,
     searching: false
   });
-  $('#tblCalculosElasticidad').DataTable({
+  tblMfsCalculosElasticidad = $('#tblMfsCalculosElasticidad').DataTable({
     paging: false,
     ordering: false,
     info: false,
@@ -435,26 +437,33 @@ function crearCargaPuntual(event) {
   $(`P-${n}`).focus();
 }
 
-function generarTablaIteracion(event) {
+function generarTablasIteraciones(event) {
   event.preventDefault();
 
+  sumatoriasMfs = {};
+  const tablaIteracionesMfs = generarTablaIteracionesMfs('tblMfs');
+  $('#iteracionesMfs').empty().append(tablaIteracionesMfs);
+
+  sumatoriasMfsModulosElasticidad = {};
+  const tablaIteracionesMfsModuloElasticidad = generarTablaIteracionesMfs('tblMfsCalculosElasticidad');
+  $('#iteracionesMfsModuloElasticidad').empty().append(tablaIteracionesMfsModuloElasticidad);
+}
+
+function generarTablaIteracionesMfs(tablaId) {
   let encabezado = '<td></td>' + generarEncabezado();
   let subEncabezado = '<td></td>' + generarSubencabezado();
 
-  const tablaMfs = crearTablaMfs();
+  const tablaMfs = crearTablaMfs(tablaId);
 
   const [filaK, valoresK] = crearFilaK(tablaMfs);
   const [filaFD, valoresFilaFD] = crearFilaFD(valoresK);
 
-  sumatoriasMfs = {};
+  const [htmlEncabezado, valoresEncabezado] = crearEncabezadoPrimeraIteracion(tablaId, tablaMfs);
+  let [htmlFila, valoresFila] = crearFilaPrimeraIteracion(tablaId, valoresEncabezado, valoresFilaFD);
 
-  const [htmlEncabezado, valoresEncabezado] = crearEncabezadoPrimeraIteracion(tablaMfs);
-  let [htmlFila, valoresFila] = crearFilaPrimeraIteracion(valoresEncabezado, valoresFilaFD);
-
-  let iteraciones = generarIteraciones(valoresFilaFD, valoresEncabezado, valoresFila);
+  let iteraciones = generarIteraciones(tablaId, valoresFilaFD, valoresEncabezado, valoresFila);
 
   let table = $('<table>');
-  table.attr('id', 'tblIteracion1');
   table.addClass('table table-striped table-bordered')
   let tableBody = $('<tbody>');
   const tableHeader = $('<thead>');
@@ -478,24 +487,23 @@ function generarTablaIteracion(event) {
     valoresFila: valoresFila
   });
 
-  tableBody.append(`<tr><td></td>${agregarSumatorias()}</tr>`);
+  tableBody.append(`<tr><td></td>${agregarSumatorias(tablaId)}</tr>`);
 
   table.append(tableHeader);
   table.append(tableBody);
-  const divResultado = $('#resultado');
-  divResultado.empty();
-  divResultado.append(table);
 
-  console.log(sumatoriasMfs);
+  return table;
 }
 
-function agregarSumatorias() {
+function agregarSumatorias(tablaId) {
   const mfs = data.mfs.map(e => e.mf).sort();
 
-  return _.map(mfs, e => `<td style="text-align: center; background-color: azure">${sumatoriasMfs[e]}</td>`).join('');
+  if (tablaId === 'tblMfs') {
+    return _.map(mfs, e => `<td style="text-align: center; background-color: azure">${sumatoriasMfs[e]}</td>`).join('');
+  }
 }
 
-function generarIteraciones(valoresFilaFD, filaValoresPrimeraIteracion, valoresPrimeraIteracion) {
+function generarIteraciones(tablaId, valoresFilaFD, filaValoresPrimeraIteracion, valoresPrimeraIteracion) {
   let iteraciones = [];
   let continuar = true;
   let htmlFila;
@@ -506,8 +514,8 @@ function generarIteraciones(valoresFilaFD, filaValoresPrimeraIteracion, valoresP
     let valoresFila = null;
 
     if (continuar) {
-      [htmlEncabezado, valoresEncabezado] = generarEncabezadoIteracion(valoresPrimeraIteracion);
-      [htmlFila, valoresFila] = generarFilaIteracion(valoresFilaFD, valoresEncabezado);
+      [htmlEncabezado, valoresEncabezado] = generarEncabezadoIteracion(tablaId, valoresPrimeraIteracion);
+      [htmlFila, valoresFila] = generarFilaIteracion(tablaId, valoresFilaFD, valoresEncabezado);
       iteraciones.push({htmlEncabezado, valoresEncabezado, htmlFila, valoresFila});
 
       continuar = false;
@@ -515,8 +523,8 @@ function generarIteraciones(valoresFilaFD, filaValoresPrimeraIteracion, valoresP
       const ultimaIteracion = _.last(iteraciones);
       valoresPrimeraIteracion = ultimaIteracion.valoresFila;
 
-      [htmlEncabezado, valoresEncabezado] = generarEncabezadoIteracion(valoresPrimeraIteracion);
-      [htmlFila, valoresFila] = generarFilaIteracion(valoresFilaFD, valoresEncabezado);
+      [htmlEncabezado, valoresEncabezado] = generarEncabezadoIteracion(tablaId, valoresPrimeraIteracion);
+      [htmlFila, valoresFila] = generarFilaIteracion(tablaId, valoresFilaFD, valoresEncabezado);
       iteraciones.push({htmlEncabezado, valoresEncabezado, htmlFila, valoresFila});
     }
 
@@ -532,7 +540,7 @@ function esSumaAproximadaACero(valoresFila) {
   return valores.length > 1;
 }
 
-function generarFilaIteracion(valoresFilaFD, encabezado) {
+function generarFilaIteracion(tablaId, valoresFilaFD, encabezado) {
   const letras = [...new Set(data.mfs.map(e => _.head(e.mf)).sort())];
   const grupos = _.groupBy(data.mfs, mf => mf.mf[0]);
 
@@ -546,7 +554,7 @@ function generarFilaIteracion(valoresFilaFD, encabezado) {
       const resultado = -_.sum(datos) * fd.fd;
       valores.push({mf: e.mf, v: resultado});
 
-      incrementarSumatoriaMf(e.mf, resultado);
+      incrementarSumatoriaMf(tablaId, e.mf, resultado);
 
       return `<td style="text-align: center;">${establecerAlMenosNDecimales(resultado)}</td>`;
     }).join('');
@@ -555,7 +563,7 @@ function generarFilaIteracion(valoresFilaFD, encabezado) {
   return [resultado, valores];
 }
 
-function generarEncabezadoIteracion(valoresPrimeraIteracion) {
+function generarEncabezadoIteracion(tablaId, valoresPrimeraIteracion) {
   const letras = [...new Set(data.mfs.map(e => _.head(e.mf)).sort())];
   const grupos = _.groupBy(data.mfs, mf => mf.mf[0]);
 
@@ -567,7 +575,7 @@ function generarEncabezadoIteracion(valoresPrimeraIteracion) {
 
       valores.push({mf: e.mf, v: valor.v / 2});
 
-      incrementarSumatoriaMf(e.mf, valor.v / 2);
+      incrementarSumatoriaMf(tablaId, e.mf, valor.v / 2);
 
       return `<td style="text-align: center;">${establecerAlMenosNDecimales(valor.v / 2)}</td>`;
     }).join('');
@@ -576,7 +584,7 @@ function generarEncabezadoIteracion(valoresPrimeraIteracion) {
   return [resultado, valores]
 }
 
-function crearFilaPrimeraIteracion(filaValoresPrimeraIteracion, valoresFilaFD) {
+function crearFilaPrimeraIteracion(tablaId, filaValoresPrimeraIteracion, valoresFilaFD) {
   const letras = [...new Set(data.mfs.map(e => _.head(e.mf)).sort())];
 
   const ultimaIteracion = [];
@@ -589,7 +597,7 @@ function crearFilaPrimeraIteracion(filaValoresPrimeraIteracion, valoresFilaFD) {
       const resultado = -suma * e.fd;
       ultimaIteracion.push({mf: e.mf, v: resultado});
 
-      incrementarSumatoriaMf(e.mf, resultado);
+      incrementarSumatoriaMf(tablaId, e.mf, resultado);
 
       return `<td style="text-align: center;">${establecerAlMenosNDecimales(resultado)}</td>`;
     }).join('');
@@ -598,15 +606,24 @@ function crearFilaPrimeraIteracion(filaValoresPrimeraIteracion, valoresFilaFD) {
   return [resultadoHtml, ultimaIteracion];
 }
 
-function incrementarSumatoriaMf(mf, valor) {
-  if (sumatoriasMfs[mf]) {
-    sumatoriasMfs[mf] += valor;
+function incrementarSumatoriaMf(tablaId, mf, valor) {
+  if (tablaId === 'tblMfs') {
+
+    if (sumatoriasMfs[mf]) {
+      sumatoriasMfs[mf] += valor;
+    } else {
+      sumatoriasMfs[mf] = valor;
+    }
   } else {
-    sumatoriasMfs[mf] = valor;
+    if (sumatoriasMfsModulosElasticidad[mf]) {
+      sumatoriasMfsModulosElasticidad[mf] += valor;
+    } else {
+      sumatoriasMfsModulosElasticidad[mf] = valor;
+    }
   }
 }
 
-function crearEncabezadoPrimeraIteracion(tablaMfs) {
+function crearEncabezadoPrimeraIteracion(tablaId, tablaMfs) {
   const letras = [...new Set(data.mfs.map(e => _.head(e.mf)).sort())];
   const grupos = _.groupBy(data.mfs, mf => mf.mf[0]);
 
@@ -618,7 +635,7 @@ function crearEncabezadoPrimeraIteracion(tablaMfs) {
 
       const mf = _.findLast(tablaMfs, g => g['MF'] === e.mf);
 
-      incrementarSumatoriaMf(e.mf, mf['Mf']);
+      incrementarSumatoriaMf(tablaId, e.mf, mf['Mf']);
 
       valoresIteracion[l].push({mf: e.mf, v: mf['Mf']});
 
@@ -674,8 +691,8 @@ function crearFilaK(tablaMfs) {
   return [filaK, valoresK];
 }
 
-function crearTablaMfs() {
-  const tablaMfs = parseTable(document.querySelector('#tblMfs'));
+function crearTablaMfs(tablaId) {
+  const tablaMfs = parseTable(document.querySelector(`#${tablaId}`));
 
   tablaMfs.forEach(e => {
     _.each(_.keys(e), k => {
@@ -710,8 +727,8 @@ function generarSubencabezado() {
 }
 
 function actualizarTablaCalculosElasticidad() {
-  const tblCalculosElasticidad = $('#tblCalculosElasticidad');
-  $(tblCalculosElasticidad).find('tbody').empty();
+  const tblMfsCalculosElasticidad = $('#tblMfsCalculosElasticidad');
+  $(tblMfsCalculosElasticidad).find('tbody').empty();
 
   const mcm = encontrarMCM();
   for (const mf of data.mfs) {
@@ -744,8 +761,10 @@ function actualizarTablaCalculosElasticidad() {
 
     agregarColumnasComputadasMfs(row, mcm, mf);
 
-    tblCalculosElasticidad.append(row);
+    tblMfsCalculosElasticidad.append(row);
   }
+
+  tblMfsCalculosElasticidad.DataTable();
 }
 
 function obtenerUn(tipoElemento) {
