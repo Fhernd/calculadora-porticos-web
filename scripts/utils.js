@@ -16,12 +16,23 @@ class MF {
     this.longitud = longitud;
     this.cargaRepartida = cargaRepartida;
     this.cargasPuntuales = [];
-    this.signo = this.mf.replace('-', '');
-    this.signo = this.signo.charCodeAt(0) < this.signo.charCodeAt(1) ? 1 : -1;
+    this.signo = this.establecerSigno();
     this.mcm = null;
     this.un = null;
     this.il = null;
     this.k = null;
+  }
+
+  establecerSigno() {
+    this.signo = this.mf.replace('-', '');
+    this.signo = this.signo.charCodeAt(0) < this.signo.charCodeAt(1) ? 1 : -1;
+
+    if (['G-K', 'H-L', 'I-M', 'J-N', 'G-C', 'E-I', 'A-D', 'B-E', 'K-G', 'L-H', 'M-I', 'N-J', 'C-G', 'I-E', 'D-A', 'E-B']
+      .indexOf(this.mf) !== -1) {
+      this.signo *= -1;
+    }
+
+    return this.signo;
   }
 }
 
@@ -62,4 +73,15 @@ function isNaNOrNullOrUndefined(valor) {
 
 function isEmptyString(valor) {
   return !Boolean(valor.trim().length);
+}
+
+function reverseString(s){
+  return s.split("").reverse().join("");
+}
+
+function createElementFromHTML(htmlString) {
+  const div = document.createElement('div');
+  div.innerHTML = htmlString.trim();
+
+  return div.firstChild;
 }

@@ -1,5 +1,6 @@
 let data = {};
 let tblMfs = null;
+let sumatoriasMfs = null;
 
 $(() => {
   init();
@@ -445,48 +446,164 @@ function generarTablaIteracion(event) {
   const [filaK, valoresK] = crearFilaK(tablaMfs);
   const [filaFD, valoresFilaFD] = crearFilaFD(valoresK);
 
-  let iteracionesDatos = [];
-  const primerIteracion = {encabezado: null, fila: null};
+  sumatoriasMfs = {};
 
-  const [filaEncabezado, filaValoresPrimeraIteracion] = crearEncabezadoPrimeraIteracion(tablaMfs);
-  const filaPrimeraIteracion = crearFilaPrimeraIteracion(filaValoresPrimeraIteracion, valoresFilaFD);
+  const [htmlEncabezado, valoresEncabezado] = crearEncabezadoPrimeraIteracion(tablaMfs);
+  let [htmlFila, valoresFila] = crearFilaPrimeraIteracion(valoresEncabezado, valoresFilaFD);
 
-  let iteraciones = _.range(1, 16).map((i) => {
-    const fila1Iteracion = _.range(data.mfs.length).map(() => `<td>${_.round(_.random(0, 13, true))}</td>`).join('')
-    const fila2Iteracion = _.range(data.mfs.length).map(() => `<td>${_.round(_.random(0, 13, true))}</td>`).join('')
-
-    return `<tr><td rowspan="2"> Iteración ${i}</td>${fila1Iteracion}</tr><tr>${fila2Iteracion}</tr>`;
-  }).join('');
+  let iteraciones = generarIteraciones(valoresFilaFD, valoresEncabezado, valoresFila);
 
   let table = $('<table>');
+  table.attr('id', 'tblIteracion1');
   table.addClass('table table-striped table-bordered')
   let tableBody = $('<tbody>');
-  tableBody.append(`<tr>${encabezado}</tr>`);
-  tableBody.append(`<tr>${subEncabezado}</tr>`);
-  tableBody.append(`<tr><td>K</td>${filaK}</tr>`);
-  tableBody.append(`<tr><td>F.D</td>${filaFD}</tr>`);
-  tableBody.append(`<tr><td rowspan="2">Iteración</td>>${filaEncabezado}`);
-  tableBody.append(`<tr>${filaPrimeraIteracion}</tr>`);
+  const tableHeader = $('<thead>');
+  tableHeader.append(`<tr class="iteracion1EncabezadoPrincipal">${encabezado}</tr>`);
+  tableHeader.append(`<tr class="iteracion1SubencabezadoPrincipal">${subEncabezado}</tr>`);
+  tableHeader.append(`<tr class="iteracion1FilaK"><td>K</td>${filaK}</tr>`);
+  tableHeader.append(`<tr class="iteracion1FilaFd"><td>F.D</td>${filaFD}</tr>`);
 
+  tableBody.append(`<tr class="iteracion1Iteracion1Encabezado"><td rowspan="2">Iteración 1</td>>${htmlEncabezado}`);
+  tableBody.append(`<tr class="iteracion1Iteracion1Fila">${htmlFila}</tr>`);
+
+  for (let i = 0; i < iteraciones.length; i++) {
+    const iteracion = iteraciones[i];
+    tableBody.append(`<tr class="iteracion1Iteracion${i + 2}Encabezado"><td rowspan="2">Iteración ${i + 2}</td>>${iteracion.htmlEncabezado}`);
+    tableBody.append(`<tr class="iteracion1Iteracion${i + 2}Fila">${iteracion.htmlFila}</tr>`);
+  }
+
+  iteraciones.splice(0, 0, {
+    htmlEncabezado: htmlEncabezado,
+    valoresEncabezado: valoresEncabezado, htmlFila: htmlFila,
+    valoresFila: valoresFila
+  });
+
+  tableBody.append(`<tr><td></td>${agregarSumatorias()}</tr>`);
+
+  table.append(tableHeader);
   table.append(tableBody);
   const divResultado = $('#resultado');
   divResultado.empty();
   divResultado.append(table);
+
+  console.log(sumatoriasMfs);
+}
+
+function agregarSumatorias() {
+  const mfs = data.mfs.map(e => e.mf).sort();
+
+  return _.map(mfs, e => `<td style="text-align: center; background-color: azure">${sumatoriasMfs[e]}</td>`).join('');
+}
+
+function generarIteraciones(valoresFilaFD, filaValoresPrimeraIteracion, valoresPrimeraIteracion) {
+  let iteraciones = [];
+  let continuar = true;
+  let htmlFila;
+  let htmlEncabezado;
+
+  do {
+    let valoresEncabezado = null;
+    let valoresFila = null;
+
+    if (continuar) {
+      [htmlEncabezado, valoresEncabezado] = generarEncabezadoIteracion(valoresPrimeraIteracion);
+      [htmlFila, valoresFila] = generarFilaIteracion(valoresFilaFD, valoresEncabezado);
+      iteraciones.push({htmlEncabezado, valoresEncabezado, htmlFila, valoresFila});
+
+      continuar = false;
+    } else {
+      const ultimaIteracion = _.last(iteraciones);
+      valoresPrimeraIteracion = ultimaIteracion.valoresFila;
+
+      [htmlEncabezado, valoresEncabezado] = generarEncabezadoIteracion(valoresPrimeraIteracion);
+      [htmlFila, valoresFila] = generarFilaIteracion(valoresFilaFD, valoresEncabezado);
+      iteraciones.push({htmlEncabezado, valoresEncabezado, htmlFila, valoresFila});
+    }
+
+  } while (esSumaAproximadaACero(_.last(iteraciones).valoresFila));
+
+  return iteraciones;
+}
+
+function esSumaAproximadaACero(valoresFila) {
+  let valores = _.map(valoresFila, e => Math.abs(_.toNumber(establecerAlMenosNDecimales(e.v))) >= 0.001);
+  valores = _.filter(valores, e => e);
+
+  return valores.length > 1;
+}
+
+function generarFilaIteracion(valoresFilaFD, encabezado) {
+  const letras = [...new Set(data.mfs.map(e => _.head(e.mf)).sort())];
+  const grupos = _.groupBy(data.mfs, mf => mf.mf[0]);
+
+  const valores = [];
+
+  const resultado = _.map(letras, l => {
+    return _.map(_.sortBy(grupos[l], f => f.mf), e => {
+      const mfs = _.filter(encabezado, o => _.startsWith(o['mf'], l));
+      const fd = _.find(valoresFilaFD[l], v => v.mf === e.mf);
+      const datos = _.map(mfs, d => d['v']);
+      const resultado = -_.sum(datos) * fd.fd;
+      valores.push({mf: e.mf, v: resultado});
+
+      incrementarSumatoriaMf(e.mf, resultado);
+
+      return `<td style="text-align: center;">${establecerAlMenosNDecimales(resultado)}</td>`;
+    }).join('');
+  }).join('');
+
+  return [resultado, valores];
+}
+
+function generarEncabezadoIteracion(valoresPrimeraIteracion) {
+  const letras = [...new Set(data.mfs.map(e => _.head(e.mf)).sort())];
+  const grupos = _.groupBy(data.mfs, mf => mf.mf[0]);
+
+  const valores = [];
+
+  const resultado = _.map(letras, l => {
+    return _.map(_.sortBy(grupos[l], f => f.mf), e => {
+      const valor = _.find(valoresPrimeraIteracion, v => reverseString(v.mf) === e.mf);
+
+      valores.push({mf: e.mf, v: valor.v / 2});
+
+      incrementarSumatoriaMf(e.mf, valor.v / 2);
+
+      return `<td style="text-align: center;">${establecerAlMenosNDecimales(valor.v / 2)}</td>`;
+    }).join('');
+  }).join('');
+
+  return [resultado, valores]
 }
 
 function crearFilaPrimeraIteracion(filaValoresPrimeraIteracion, valoresFilaFD) {
   const letras = [...new Set(data.mfs.map(e => _.head(e.mf)).sort())];
 
-  return _.map(letras, l => {
-    const valores = filaValoresPrimeraIteracion[l];
+  const ultimaIteracion = [];
+
+  const resultadoHtml = _.map(letras, l => {
+    const valores = _.map(filaValoresPrimeraIteracion[l], e => e.v);
     const suma = _.sum(valores);
 
-    console.log(valores, suma);
+    return _.map(valoresFilaFD[l], e => {
+      const resultado = -suma * e.fd;
+      ultimaIteracion.push({mf: e.mf, v: resultado});
 
-    _.map(valoresFilaFD[l], d => {
-      return `<td style="text-align: center;">${suma * d}</td>`;
+      incrementarSumatoriaMf(e.mf, resultado);
+
+      return `<td style="text-align: center;">${establecerAlMenosNDecimales(resultado)}</td>`;
     }).join('');
   }).join('');
+
+  return [resultadoHtml, ultimaIteracion];
+}
+
+function incrementarSumatoriaMf(mf, valor) {
+  if (sumatoriasMfs[mf]) {
+    sumatoriasMfs[mf] += valor;
+  } else {
+    sumatoriasMfs[mf] = valor;
+  }
 }
 
 function crearEncabezadoPrimeraIteracion(tablaMfs) {
@@ -500,9 +617,12 @@ function crearEncabezadoPrimeraIteracion(tablaMfs) {
     return _.map(_.sortBy(grupos[l], f => f.mf), e => {
 
       const mf = _.findLast(tablaMfs, g => g['MF'] === e.mf);
-      valoresIteracion[l].push(mf['K']);
 
-      return `<td style="text-align: center;">${mf['Mf']}</td>`;
+      incrementarSumatoriaMf(e.mf, mf['Mf']);
+
+      valoresIteracion[l].push({mf: e.mf, v: mf['Mf']});
+
+      return `<td style="text-align: center;">${establecerAlMenosNDecimales(mf['Mf'])}</td>`;
     }).join('');
   }).join('');
 
@@ -514,19 +634,19 @@ function crearFilaFD(valoresK) {
 
   const filaFD = _.map(_.keys(valoresK), k => {
     valoresFilaFD[k] = [];
-    const data = valoresK[k];
+    const data = _.map(valoresK[k], e => e.K);
     const suma = _.sum(data)
 
     if (data.length === 1) {
-      valoresFilaFD[k].push(0);
+      valoresFilaFD[k].push({mf: valoresK[k][0].mf, fd: 0});
 
-      return '<td>0.000</td>';
+      return '<th>0.000</th>';
     }
 
-    return _.map(data, d => {
-      const resultado = d / suma;
-      valoresFilaFD[k].push(resultado);
-      return `<td>${establecerAlMenosNDecimales(resultado)}</td>`;
+    return _.map(valoresK[k], e => {
+      const resultado = e.K / suma;
+      valoresFilaFD[k].push({mf: e.mf, fd: resultado});
+      return `<th>${establecerAlMenosNDecimales(resultado)}</th>`;
     }).join('');
   }).join('');
 
@@ -537,14 +657,17 @@ function crearFilaK(tablaMfs) {
   const letras = [...new Set(data.mfs.map(e => _.head(e.mf)).sort())];
   const grupos = _.groupBy(data.mfs, mf => mf.mf[0]);
 
-  let valoresK = {};
+  let valoresK = [];
 
   const filaK = _.map(letras, l => {
     valoresK[l] = [];
     return _.map(_.sortBy(grupos[l], f => f.mf), e => {
+
       const mf = _.findLast(tablaMfs, g => g['MF'] === e.mf);
-      valoresK[l].push(mf['K']);
-      return `<td style="text-align: center;">${mf['K']}</td>`;
+
+      valoresK[l].push({mf: e.mf, K: mf['K']});
+
+      return `<th style="text-align: center;">${mf['K']}</th>`;
     }).join('');
   }).join('');
 
@@ -571,7 +694,7 @@ function generarEncabezado() {
   return letras.map(e => {
 
     const contador = data.mfs.filter(d => _.head(d.mf) === e).length;
-    return `<td colspan="${contador}" style="text-align: center;">${e}</td>`;
+    return `<th colspan="${contador}" style="text-align: center;">${e}</th>`;
   }).join('');
 }
 
@@ -581,7 +704,7 @@ function generarSubencabezado() {
 
   return _.map(letras, l => {
     return _.map(_.sortBy(grupos[l], f => f.mf), e => {
-      return `<td style="text-align: center;">${e.mf}</td>`;
+      return `<th style="text-align: center;">${e.mf}</th>`;
     }).join('');
   }).join('');
 }
@@ -591,15 +714,19 @@ function actualizarTablaCalculosElasticidad() {
   $(tblCalculosElasticidad).find('tbody').empty();
 
   const mcm = encontrarMCM();
-  console.log('123');
   for (const mf of data.mfs) {
-    console.log(mf);
     const row = $('<tr>');
 
     row.append(`<td>${mf.mf}</td>`);
     row.append(`<td>${data.E}</td>`);
 
-    const I = '';
+    let I = '';
+    const tipoElemento = mf.tipoElemento;
+    const elemento = _.find(data.elementos, e => `${e.tipo}${e.id}` === tipoElemento);
+
+    if (elemento.tipo === 'col') {
+      I = elemento.I;
+    }
 
     row.append(`<td>${I}</td>`);
     row.append(`<td>${mf.longitud}</td>`);
@@ -609,14 +736,13 @@ function actualizarTablaCalculosElasticidad() {
     let mfResultado = '';
 
     if (I) {
-      mfResultado = '';
+      mfResultado = 6 * data.E * I / (Math.pow(mf.longitud, 2)) / 1000;
+      row.append(`<td>${establecerAlMenosNDecimales(mfResultado)}</td>`);
+    } else {
+      row.append(`<td></td>`);
     }
-    row.append(`<td>${mfResultado}</td>`);
 
-    row.append(`<td>${mcm}</td>`);
-    row.append(`<td>${1}</td>`);
-    row.append(`<td>${1}</td>`);
-    row.append(`<td>${1}</td>`);
+    agregarColumnasComputadasMfs(row, mcm, mf);
 
     tblCalculosElasticidad.append(row);
   }
