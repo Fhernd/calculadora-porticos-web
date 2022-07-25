@@ -78,10 +78,3 @@ function isEmptyString(valor) {
 function reverseString(s){
   return s.split("").reverse().join("");
 }
-
-function createElementFromHTML(htmlString) {
-  const div = document.createElement('div');
-  div.innerHTML = htmlString.trim();
-
-  return div.firstChild;
-}

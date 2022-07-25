@@ -442,11 +442,89 @@ function generarTablasIteraciones(event) {
 
   sumatoriasMfs = {};
   const tablaIteracionesMfs = generarTablaIteracionesMfs('tblMfs');
-  $('#iteracionesMfs').empty().append(tablaIteracionesMfs);
+  const divIteracionesMfs = $('#iteracionesMfs');
+  divIteracionesMfs.empty().append(tablaIteracionesMfs);
+  divIteracionesMfs.append('<br>');
 
   sumatoriasMfsModulosElasticidad = {};
   const tablaIteracionesMfsModuloElasticidad = generarTablaIteracionesMfs('tblMfsCalculosElasticidad');
-  $('#iteracionesMfsModuloElasticidad').empty().append(tablaIteracionesMfsModuloElasticidad);
+  const divIteracionesMfsModuloElasticidad = $('#iteracionesMfsModuloElasticidad');
+  divIteracionesMfsModuloElasticidad.empty().append(tablaIteracionesMfsModuloElasticidad);
+  divIteracionesMfsModuloElasticidad.append('<br>');
+
+  divIteracionesMfsModuloElasticidad.append('<br>');
+  divIteracionesMfsModuloElasticidad.append('<br>');
+  divIteracionesMfsModuloElasticidad.append('<p></p>');
+
+  const factorK = calcularFactorK();
+
+  const tablaMomento = generarTablaMomento(factorK);
+  divIteracionesMfsModuloElasticidad.append(tablaMomento);
+}
+
+function calcularFactorK() {
+  const mfsColumnas = _.filter(data.mfs, e => _.startsWith(e.tipoElemento, 'col'));
+
+  const agregados = [];
+  let factorK = 0;
+
+  for (const mf of mfsColumnas) {
+    if (agregados.indexOf(mf.mf) === -1) {
+      const invertido = reverseString(mf.mf);
+
+      if (agregados.indexOf(invertido) !== -1) {
+        continue;
+      }
+
+      if (mf.cargaRepartida && mf.longitud) {
+        factorK += mf.cargaRepartida * mf.longitud;
+        if (mf.cargasPuntuales.length) {
+          for (const cp of mf.cargasPuntuales) {
+            if (cp.valor) {
+              factorK += cp.valor;
+            }
+          }
+        }
+      } else if (mf.cargasPuntuales.length) {
+        for (const cp of mf.cargasPuntuales) {
+          if (cp.valor) {
+            factorK += cp.valor;
+          }
+        }
+      }
+
+      agregados.push(mf.mf);
+    }
+  }
+
+  const mitad = factorK / 2;
+  const L = _.find(mfsColumnas, e => e.longitud).longitud;
+  factorK = mitad * L;
+  const sumaMfs = calcularSumatorias('tblMfs');
+  const sumaMfsFactorElasticidad = calcularSumatorias('tblMfsCalculosElasticidad');
+  return (factorK - sumaMfs) / sumaMfsFactorElasticidad;
+}
+
+function generarTablaMomento(factorK) {
+  const mfs = data.mfs.map(e => e.mf).sort();
+
+  const tableMomento = $('<table>');
+  tableMomento.addClass('table');
+  tableMomento.addClass('table-striped');
+  const tableBody = $('<tbody>');
+  const row = $('<tr>');
+
+  const tds = _.map(mfs, e => {
+    return `<td style="text-align: center;">${sumatoriasMfs[e] + (sumatoriasMfsModulosElasticidad[e] * factorK)}</td>`;
+  }).join('');
+
+  row.append(`<td style="text-align: center; background-color: red">MOMENTO</td>`);
+  row.append(tds);
+
+  tableBody.append(row);
+  tableMomento.append(tableBody);
+
+  return tableMomento;
 }
 
 function generarTablaIteracionesMfs(tablaId) {
@@ -495,11 +573,23 @@ function generarTablaIteracionesMfs(tablaId) {
   return table;
 }
 
+function calcularSumatorias(tablaId) {
+  const mfsColumnas = _.filter(data.mfs, e => _.startsWith(e.tipoElemento, 'col'));
+
+  if (tablaId === 'tblMfs') {
+    return _.sum(_.map(mfsColumnas, e => sumatoriasMfs[e.mf]));
+  } else {
+    return _.sum(_.map(mfsColumnas, e => sumatoriasMfsModulosElasticidad[e.mf]));
+  }
+}
+
 function agregarSumatorias(tablaId) {
   const mfs = data.mfs.map(e => e.mf).sort();
 
   if (tablaId === 'tblMfs') {
     return _.map(mfs, e => `<td style="text-align: center; background-color: azure">${sumatoriasMfs[e]}</td>`).join('');
+  } else {
+    return _.map(mfs, e => `<td style="text-align: center; background-color: azure">${sumatoriasMfsModulosElasticidad[e]}</td>`).join('');
   }
 }
 
