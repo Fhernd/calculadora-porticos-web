@@ -4,8 +4,12 @@ let tblMfsCalculosElasticidad = null;
 let sumatoriasMfs = null;
 let sumatoriasMfsModulosElasticidad = null;
 
+/**
+ * Una vez se cargue el navegador, se inicializa la aplicación.
+ */
 $(() => {
   init();
+
   $('#frmInicioCapturaDatos').on('submit', iniciarCapturaDatos);
   $('#btnAgregarElemento').on('click', agregarElemento);
   $('#btnGuardarElemento').on('click', guardarElemento);
@@ -17,6 +21,9 @@ $(() => {
   $('#E').focus();
 });
 
+/**
+ * Inicializa los componentes de la interfaz gráfica.
+ */
 function init() {
   $('.mf').hide();
   $('.data').hide();
@@ -45,11 +52,17 @@ function init() {
   };
 }
 
+/**
+ * Inicia la captura de datos.
+ * @param event Información del evento del botón que inicia la captura de datos.
+ */
 function iniciarCapturaDatos(event) {
   event.preventDefault();
 
   $('#btnIniciarCaptura').hide();
   const E = $('#E');
+  const Fy = $('#Fy');
+  data['fc'] = parseInt(E.val());
   const unidadMedida = $('input[name="unidadMedida"]');
 
   E.prop('disabled', true);
@@ -57,10 +70,15 @@ function iniciarCapturaDatos(event) {
   $('.captura').show();
   $('.data').show();
 
-  data['E'] = parseInt(E.val());
+  data['E'] = 3900 * Math.sqrt(parseInt(E.val())) * 1000;
   data['unidadMedida'] = unidadMedida.val();
+  data['Fy'] = parseInt(Fy.val());
 }
 
+/**
+ * Agrega un nuevo elemento.
+ * @param event Información del evento.
+ */
 function agregarElemento(event) {
   event.preventDefault();
 
@@ -112,12 +130,19 @@ function guardarElemento(event) {
   $('#btnAgregarElemento').removeAttr('disabled');
 }
 
+/**
+ * Limpia los campos del elemento.
+ */
 function limpiarCamposElemento() {
   $('#B').val('');
   $('#H').val('');
   $('#E').val('');
 }
 
+/**
+ * Agrega un nuevo MF a la interfaz.
+ * @param event Información del evento.
+ */
 function agregarMF(event) {
   event.preventDefault();
 
@@ -133,10 +158,15 @@ function agregarMF(event) {
   }
 }
 
+/**
+ * Guarda un MF en la memoria del navegador.
+ * @param event Información del evento.
+ */
 function guardarMf(event) {
   event.preventDefault();
 
   $(this).prop('disabled', false);
+  $('#btnGenerarTablaIteracion').removeAttr('disabled');
   let mfSeleccionado = $('#mf');
   const tipoElementoSeleccionado = $('#tipoElemento');
   let mf = mfSeleccionado.val();
@@ -211,12 +241,19 @@ function guardarMf(event) {
   alertify.success('Se ha creado un nuevo MF.');
 }
 
+/**
+ * Limpia los campos de nuevo MF.
+ */
 function limpiarCamposMf() {
   $('#L').val('');
   $('#W').val('');
   $('#cargasPuntuales').empty();
 }
 
+/**
+ * Actualiza la tabla de elementos según el último elemento agregado.
+ * @param elemento Último elemento agregado.
+ */
 function actualizarTablaElementos(elemento) {
   const nuevoElementoTr = $('<tr>');
 
@@ -241,12 +278,19 @@ function actualizarTablaElementos(elemento) {
   $('#tblElementos').append(nuevoElementoTr);
 }
 
+/**
+ * Encuentra el mínimo común múltiple entre los valores de longitud.
+ * @returns {*} Mínimo Común Múltiplo.
+ */
 function encontrarMCM() {
   let longitudes = _.values(_.mapValues(data.mfs, 'longitud'));
 
   return calcularMinimoComunMultiplo(longitudes);
 }
 
+/**
+ * Actualiza la tabla de MFs a medida que se agrega nuevos MFs.
+ */
 function actualizarTablaMfs() {
   const mcm = encontrarMCM();
 
@@ -287,6 +331,13 @@ function actualizarTablaMfs() {
   tblMfs.DataTable();
 }
 
+/**
+ * Genera una nueva fila de MF con carga repartida.
+ * @param mf MF a agregar.
+ * @param mcm Mínimo común múltiplo.
+ * @param signo Signo del elemento a agregar.
+ * @returns {(*|jQuery|HTMLElement|number)[]} Retorna arreglo con la fila creada y el Mf calculado.
+ */
 function generarFilaMfConCargaRepartida(mf, mcm, signo) {
   let row = $('<tr>');
   row.append($(`<td>${mf.mf}</td>`));
@@ -313,6 +364,16 @@ function generarFilaMfConCargaRepartida(mf, mcm, signo) {
   return [row, Mf];
 }
 
+/**
+ * Genera una fila con carga puntula.
+ * @param mf MF a agregar.
+ * @param cargaPuntual Carga puntual a agregar.
+ * @param tipoMf Tipo de MF agregar.
+ * @param longitud Longitud.
+ * @param mcm Mínimo común múltiplo.
+ * @param signo Signo del MF.
+ * @returns {(*|jQuery|HTMLElement|number)[]} Retorna arreglo con la fila creada y el Mf calculado.
+ */
 function generarFilaCargaPuntual(mf, cargaPuntual, tipoMf, longitud, mcm, signo) {
   let row = $('<tr>');
   row.append($(`<td>${tipoMf}</td>`));
@@ -337,6 +398,15 @@ function generarFilaCargaPuntual(mf, cargaPuntual, tipoMf, longitud, mcm, signo)
   return [row, Mf];
 }
 
+/**
+ * Genera una fila sumarizada.
+ * @param mf MF con los datos a calcular.
+ * @param tipoMf Tipo de MF.
+ * @param longitud Longitud.
+ * @param mcm Mínimo común múltiplo.
+ * @param sumaMfs Suma de MFs anteriores.
+ * @returns {*|jQuery|HTMLElement} Retorna arreglo con la fila creada y el Mf calculado.
+ */
 function generarFilaSumarizada(mf, tipoMf, longitud, mcm, sumaMfs) {
   let row = $('<tr>');
   row.append($(`<td>${tipoMf}</td>`));
@@ -353,6 +423,12 @@ function generarFilaSumarizada(mf, tipoMf, longitud, mcm, sumaMfs) {
   return row;
 }
 
+/**
+ * Agregar columnas computadas de MFs.
+ * @param row Fila sobre la que se agregarán celdas con los nuevos cálculos.
+ * @param mcm Mínimo común múltiplo.
+ * @param mf MF.
+ */
 function agregarColumnasComputadasMfs(row, mcm, mf) {
   mf.il = mf.un / mf.longitud;
   mf.k = mf.il * mcm;
@@ -362,10 +438,19 @@ function agregarColumnasComputadasMfs(row, mcm, mf) {
   row.append(`<td>${establecerAlMenosNDecimales(mf.k)}</td>`);
 }
 
+/**
+ * Comprueba si existe carga repartida para un nombre de MF dado.
+ * @param nombreMf Nombre del MF.
+ * @returns {value is boolean} true si existe, false en caso contrario.
+ */
 function existeCargaRepartidaParaMf(nombreMf) {
   return _.isBoolean(_.find(data.mfs, (mf) => mf.mf === nombreMf && !mf.cargaRepartida));
 }
 
+/**
+ * Crea una nueva carga puntual.
+ * @param event Información del evento de creación de carga puntual.
+ */
 function crearCargaPuntual(event) {
   event.preventDefault();
   let n = $('.carga-puntual').length;
@@ -437,6 +522,10 @@ function crearCargaPuntual(event) {
   $(`P-${n}`).focus();
 }
 
+/**
+ * Genera las tablas de iteraciones.
+ * @param event
+ */
 function generarTablasIteraciones(event) {
   event.preventDefault();
 
@@ -449,17 +538,40 @@ function generarTablasIteraciones(event) {
   sumatoriasMfsModulosElasticidad = {};
   const tablaIteracionesMfsModuloElasticidad = generarTablaIteracionesMfs('tblMfsCalculosElasticidad');
   const divIteracionesMfsModuloElasticidad = $('#iteracionesMfsModuloElasticidad');
-  divIteracionesMfsModuloElasticidad.empty().append(tablaIteracionesMfsModuloElasticidad);
-  divIteracionesMfsModuloElasticidad.append('<br>');
-
-  divIteracionesMfsModuloElasticidad.append('<br>');
-  divIteracionesMfsModuloElasticidad.append('<br>');
-  divIteracionesMfsModuloElasticidad.append('<p></p>');
-
   const factorK = calcularFactorK();
 
-  const tablaMomento = generarTablaMomento(factorK);
-  divIteracionesMfsModuloElasticidad.append(tablaMomento);
+  const filaMomento = generarFilaMomento(factorK);
+  tablaIteracionesMfsModuloElasticidad.find('tbody').append(filaMomento);
+  divIteracionesMfsModuloElasticidad.empty().append(tablaIteracionesMfsModuloElasticidad);
+
+  // const tabla = generarTablaVigas();
+
+  const tablasCalculos = $('#tablasCalculos');
+  tablasCalculos.append(tabla);
+}
+
+function generarTablaVigas() {
+  const tabla = $('<table>');
+  tabla.addClass('table');
+  const tbody = $('<tbody>');
+
+  let mfsVigas = _.filter(data.mfs, e => _.startsWith(e.tipoElemento, 'vg'));
+  // mfsVigas.sort((a, b) => a.tipoElemento < b.tipoElemento ? -1 : a.tipoElemento > b.tipoElemento ? 1 : 0);
+
+  let gruposPorViga = _.groupBy(mfsVigas, 'tipoElemento');
+
+  let primeraFila = $('<tr>');
+  primeraFila.append('<td></td>');
+
+  for (const k of _.keys(gruposPorViga)) {
+    primeraFila.append(`<td>${k}</td>`);
+  }
+
+  tbody.append(primeraFila);
+
+  tabla.append(tbody);
+
+  return tabla;
 }
 
 function calcularFactorK() {
@@ -505,13 +617,8 @@ function calcularFactorK() {
   return (factorK - sumaMfs) / sumaMfsFactorElasticidad;
 }
 
-function generarTablaMomento(factorK) {
+function generarFilaMomento(factorK) {
   const mfs = data.mfs.map(e => e.mf).sort();
-
-  const tableMomento = $('<table>');
-  tableMomento.addClass('table');
-  tableMomento.addClass('table-striped');
-  const tableBody = $('<tbody>');
   const row = $('<tr>');
 
   const tds = _.map(mfs, e => {
@@ -520,11 +627,7 @@ function generarTablaMomento(factorK) {
 
   row.append(`<td style="text-align: center; background-color: red">MOMENTO</td>`);
   row.append(tds);
-
-  tableBody.append(row);
-  tableMomento.append(tableBody);
-
-  return tableMomento;
+  return row;
 }
 
 function generarTablaIteracionesMfs(tablaId) {
