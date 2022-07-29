@@ -61,6 +61,11 @@
   </div>
 
   <div class="row marketing">
+    <div class="col-12 centered-cell">
+      <img src="images/grilla.png" alt="Grilla">
+    </div>
+  </div>
+  <div class="row marketing">
     <div class="col-6">
       <form class="form-horizontal" id="frmInicioCapturaDatos">
         <fieldset>
@@ -88,7 +93,7 @@
             <label class="col-md-4 control-label" for="E">F'c</label>
             <div class="col-md-5">
               <input id="E" name="E" type="number" placeholder="F'c" class="form-control input-md"
-                     required="" min="1">
+                     required="" min="1" step=".01">
             </div>
           </div>
           <div class="form-group row">
@@ -128,6 +133,12 @@
             <label class="col-md-4 control-label"></label>
             <div class="col-md-5">
               <button id="btnAgregarElemento" class="btn btn-info btn-block">Agregar elemento</button>
+            </div>
+          </div>
+          <div class="form-group row elemento">
+            <label class="col-md-4 control-label"></label>
+            <div class="col-md-5">
+              <img src="images/dimensiones.png" alt="Dimensiones">
             </div>
           </div>
 
@@ -292,7 +303,7 @@
   <hr class="hr-mfs">
 
   <div class="row marketing row-mfs">
-    <h2>Mfs</h2>
+    <h2>Cross de Carga</h2>
   </div>
   <div class="row marketing row-mfs">
     <div class="col-12">
@@ -317,7 +328,7 @@
     </div>
   </div>
   <div class="row marketing row-mfs">
-    <h2>Mfs - Módulo de elasticidad (E)</h2>
+    <h2>Cross de desplazamiento</h2>
   </div>
   <div class="row marketing" id="divCalculosElasticidad">
     <div class="col-12">

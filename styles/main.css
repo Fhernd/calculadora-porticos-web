@@ -89,3 +89,7 @@ body {
 .container {
   min-width: 80%;
 }
+
+.centered-cell {
+  text-align: center;
+}

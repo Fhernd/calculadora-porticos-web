@@ -540,40 +540,171 @@ function generarTablasIteraciones(event) {
   const divIteracionesMfsModuloElasticidad = $('#iteracionesMfsModuloElasticidad');
   const factorK = calcularFactorK();
 
-  const filaMomento = generarFilaMomento(factorK);
+  const [filaMomento, momentos] = generarFilaMomento(factorK);
   tablaIteracionesMfsModuloElasticidad.find('tbody').append(filaMomento);
   divIteracionesMfsModuloElasticidad.empty().append(tablaIteracionesMfsModuloElasticidad);
 
-  // const tabla = generarTablaVigas();
+  const tabla = generarTablaVigas(momentos);
 
   const tablasCalculos = $('#tablasCalculos');
   tablasCalculos.append(tabla);
 }
 
-function generarTablaVigas() {
+/**
+ * Genera tabla de vigas.
+ * @param momentos Momentos calculados.
+ * @returns {*|jQuery|HTMLElement} Tabla con los datos de las vigas.
+ */
+function generarTablaVigas(momentos) {
   const tabla = $('<table>');
   tabla.addClass('table');
+  tabla.addClass('table-striped');
   const tbody = $('<tbody>');
 
   let mfsVigas = _.filter(data.mfs, e => _.startsWith(e.tipoElemento, 'vg'));
-  // mfsVigas.sort((a, b) => a.tipoElemento < b.tipoElemento ? -1 : a.tipoElemento > b.tipoElemento ? 1 : 0);
 
   let gruposPorViga = _.groupBy(mfsVigas, 'tipoElemento');
 
   let primeraFila = $('<tr>');
   primeraFila.append('<td></td>');
+  let segundaFila = $('<tr>');
+  segundaFila.append(`<td></td>`);
+  let terceraFila = $('<tr>');
+  terceraFila.append(`<td class="centered-cell">W</td>`);
+  let cuartaFila = $('<tr>');
+  cuartaFila.append(`<td class="centered-cell">P</td>`);
+  let quintaFila = $('<tr>');
+  quintaFila.append(`<td class="centered-cell">Pe</td>`);
+  let sextaFila = $('<tr>');
+  sextaFila.append(`<td class="centered-cell">Pe</td>`);
+  let septimaFila = $('<tr>');
+  septimaFila.append(`<td class="centered-cell">Momento</td>`);
+  let octavaFila = $('<tr>');
+  octavaFila.append(`<td class="centered-cell">Reacción</td>`);
 
   for (const k of _.keys(gruposPorViga)) {
-    primeraFila.append(`<td>${k}</td>`);
+    const grupo = gruposPorViga[k];
+    const mfsSinRepeticion = [...new Set(_.map(grupo, e => e.mf.split('-').sort().join('-')))]
+
+    for (const e of mfsSinRepeticion) {
+      const letras = e.split('-');
+      primeraFila.append(`<td colspan="2" class="centered-cell">${k}</td>`);
+      segundaFila.append(_.map(letras, f => `<td class="centered-cell">${f}</td>`).join(''));
+
+      const mf1 = _.find(data.mfs, f => f.mf === e);
+      const mf2 = _.find(data.mfs, f => f.mf === reverseString(e));
+
+      if (mf1 && mf2) {
+        let sumaPrimeraColumna = 0;
+        let sumaSegundaColumna = 0;
+        let resultado1 = 0;
+        let resultado2 = 0;
+
+        if (mf1.cargaRepartida && mf2.cargaRepartida) {
+          resultado1 = mf1.cargaRepartida * mf1.longitud / 2;
+          sumaPrimeraColumna += resultado1;
+          terceraFila.append(`<td class="centered-cell">${resultado1}</td>`);
+
+          resultado2 = mf2.cargaRepartida * mf2.longitud / 2;
+          sumaSegundaColumna += resultado2;
+          terceraFila.append(`<td class="centered-cell">${resultado2}</td>`);
+        }
+
+        if (mf1.cargasPuntuales.length) {
+          if (mf1.cargasPuntuales[0].esExcentrica) {
+            resultado1 = mf1.cargasPuntuales[0].valor / mf1.longitud * mf1.cargasPuntuales[0].longitudIzquierda
+            sumaPrimeraColumna += resultado1;
+            cuartaFila.append(`<td class="centered-cell">${resultado1}</td>`);
+          } else {
+            resultado1 = mf1.cargasPuntuales[0].valor / 2;
+            sumaPrimeraColumna += resultado1;
+            cuartaFila.append(`<td class="centered-cell">${resultado1}</td>`);
+          }
+
+          if (mf1.cargasPuntuales[0].esExcentrica) {
+            resultado1 = mf1.cargasPuntuales[0].valor / mf1.longitud * mf1.cargasPuntuales[0].longitudDerecha;
+            sumaPrimeraColumna += resultado1;
+            quintaFila.append(`<td class="centered-cell">${resultado1}</td>`);
+
+            resultado1 = mf1.cargasPuntuales[0].valor / mf1.longitud * mf1.cargasPuntuales[0].longitudDerecha;
+            sumaPrimeraColumna += resultado1;
+            sextaFila.append(`<td class="centered-cell">${resultado1}</td>`);
+          } else {
+            quintaFila.append(`<td class="centered-cell">0</td>`);
+          }
+        } else {
+          cuartaFila.append(`<td class="centered-cell">0</td>`);
+          quintaFila.append(`<td class="centered-cell">0</td>`);
+          sextaFila.append(`<td class="centered-cell">0</td>`);
+        }
+
+        if (mf2.cargasPuntuales.length) {
+          if (mf1.cargasPuntuales[0].esExcentrica) {
+            resultado2 = mf2.cargasPuntuales[0].valor / mf2.longitud * mf2.cargasPuntuales[0].longitudDerecha;
+            sumaSegundaColumna += resultado2;
+
+            cuartaFila.append(`<td class="centered-cell">${resultado2}</td>`);
+          } else {
+            resultado2 = mf2.cargasPuntuales[0].valor / 2;
+            sumaSegundaColumna += resultado2;
+
+            cuartaFila.append(`<td class="centered-cell">${resultado2}</td>`);
+          }
+
+          if (mf2.cargasPuntuales[0].esExcentrica) {
+            resultado2 = mf2.cargasPuntuales[0].valor * mf2.longitud * mf2.cargasPuntuales[0].longitudDerecha;
+            sumaSegundaColumna += resultado2;
+            quintaFila.append(`<td class="centered-cell">${resultado2}</td>`);
+
+            resultado2 = mf1.cargasPuntuales[0].valor / mf1.longitud * mf1.cargasPuntuales[0].longitudDerecha;
+            sumaSegundaColumna += resultado2;
+            sextaFila.append(`<td class="centered-cell">${resultado2}</td>`);
+          } else {
+            quintaFila.append(`<td class="centered-cell">0</td>`);
+          }
+        } else {
+          cuartaFila.append(`<td class="centered-cell">0</td>`);
+          quintaFila.append(`<td class="centered-cell">0</td>`);
+          sextaFila.append(`<td class="centered-cell">0</td>`);
+        }
+
+        const momento1 = momentos[e];
+        const momento2 = momentos[reverseString(e)];
+
+        resultado1 = (momento1 + momento2) / mf1.longitud;
+        sumaPrimeraColumna += resultado1;
+
+        resultado2 = -resultado1;
+        sumaSegundaColumna += resultado2;
+
+        septimaFila.append(`<td>${resultado1}</td>`);
+        septimaFila.append(`<td>${resultado2}</td>`);
+
+        octavaFila.append(`<td>${sumaPrimeraColumna}</td>`);
+        octavaFila.append(`<td>${sumaSegundaColumna}</td>`);
+      }
+    }
   }
 
   tbody.append(primeraFila);
+  tbody.append(segundaFila);
+  tbody.append(terceraFila);
+  tbody.append(cuartaFila);
+  tbody.append(quintaFila);
+  tbody.append(sextaFila);
+  tbody.append(septimaFila);
+  tbody.append(octavaFila);
+
 
   tabla.append(tbody);
 
   return tabla;
 }
 
+/**
+ * Calcula el factor K.
+ * @returns {number} El factor K.
+ */
 function calcularFactorK() {
   const mfsColumnas = _.filter(data.mfs, e => _.startsWith(e.tipoElemento, 'col'));
 
@@ -617,19 +748,32 @@ function calcularFactorK() {
   return (factorK - sumaMfs) / sumaMfsFactorElasticidad;
 }
 
+/**
+ * Calcula el factor de elasticidad.
+ * @param factorK El factor K.
+ * @returns {(*|jQuery|HTMLElement|{})[]} El factor de elasticidad con la fila.
+ */
 function generarFilaMomento(factorK) {
   const mfs = data.mfs.map(e => e.mf).sort();
   const row = $('<tr>');
 
+  const momentos = {};
+
   const tds = _.map(mfs, e => {
-    return `<td style="text-align: center;">${sumatoriasMfs[e] + (sumatoriasMfsModulosElasticidad[e] * factorK)}</td>`;
+    momentos[e] = sumatoriasMfs[e] + (sumatoriasMfsModulosElasticidad[e] * factorK);
+    return `<td style="text-align: center;">${momentos[e]}</td>`;
   }).join('');
 
   row.append(`<td style="text-align: center; background-color: red">MOMENTO</td>`);
   row.append(tds);
-  return row;
+  return [row, momentos];
 }
 
+/**
+ * Calcula el momento de inercia.
+ * @param tablaId El id de la tabla.
+ * @returns {*|jQuery|HTMLElement} Tabla con el momento de inercia.
+ */
 function generarTablaIteracionesMfs(tablaId) {
   let encabezado = '<td></td>' + generarEncabezado();
   let subEncabezado = '<td></td>' + generarSubencabezado();
@@ -676,6 +820,11 @@ function generarTablaIteracionesMfs(tablaId) {
   return table;
 }
 
+/**
+ * Calcula las sumatorias de las MFs a partir del ID de una tabla.
+ * @param tablaId El ID de la tabla.
+ * @returns {number} El valor de las sumatorias.
+ */
 function calcularSumatorias(tablaId) {
   const mfsColumnas = _.filter(data.mfs, e => _.startsWith(e.tipoElemento, 'col'));
 
@@ -686,6 +835,11 @@ function calcularSumatorias(tablaId) {
   }
 }
 
+/**
+ * Calcula las sumatorias de las MFs a partir del ID de una tabla.
+ * @param tablaId El ID de la tabla.
+ * @returns {string} El valor de las sumatorias.
+ */
 function agregarSumatorias(tablaId) {
   const mfs = data.mfs.map(e => e.mf).sort();
 
@@ -696,6 +850,14 @@ function agregarSumatorias(tablaId) {
   }
 }
 
+/**
+ * Genera las iteraciones de la tabla.
+ * @param tablaId El ID de la tabla.
+ * @param valoresFilaFD Los valores de la fila F.D.
+ * @param filaValoresPrimeraIteracion Los valores de la fila de la primera iteración.
+ * @param valoresPrimeraIteracion Valores de la primera iteración.
+ * @returns {*[]} Las iteraciones.
+ */
 function generarIteraciones(tablaId, valoresFilaFD, filaValoresPrimeraIteracion, valoresPrimeraIteracion) {
   let iteraciones = [];
   let continuar = true;
@@ -726,6 +888,11 @@ function generarIteraciones(tablaId, valoresFilaFD, filaValoresPrimeraIteracion,
   return iteraciones;
 }
 
+/**
+ * Comprueba si la suma de una fila es aproximada a cero.
+ * @param valoresFila Los valores de la fila.
+ * @returns {boolean} Si la suma es aproximada a cero.
+ */
 function esSumaAproximadaACero(valoresFila) {
   let valores = _.map(valoresFila, e => Math.abs(_.toNumber(establecerAlMenosNDecimales(e.v))) >= 0.001);
   valores = _.filter(valores, e => e);
@@ -733,6 +900,13 @@ function esSumaAproximadaACero(valoresFila) {
   return valores.length > 1;
 }
 
+/**
+ * Genera la fila de iteración.
+ * @param tablaId El ID de la tabla.
+ * @param valoresFilaFD Los valores de la fila F.D.
+ * @param encabezado  El encabezado de la iteración.
+ * @returns {(string|*[])[]} Fila HTML y valores calculados.
+ */
 function generarFilaIteracion(tablaId, valoresFilaFD, encabezado) {
   const letras = [...new Set(data.mfs.map(e => _.head(e.mf)).sort())];
   const grupos = _.groupBy(data.mfs, mf => mf.mf[0]);
@@ -756,6 +930,12 @@ function generarFilaIteracion(tablaId, valoresFilaFD, encabezado) {
   return [resultado, valores];
 }
 
+/**
+ * Genera el encabezado de la iteración.
+ * @param tablaId El ID de la tabla.
+ * @param valoresPrimeraIteracion Los valores de la primera iteración.
+ * @returns {(string|*[])[]} Encabezado HTML y valores calculados.
+ */
 function generarEncabezadoIteracion(tablaId, valoresPrimeraIteracion) {
   const letras = [...new Set(data.mfs.map(e => _.head(e.mf)).sort())];
   const grupos = _.groupBy(data.mfs, mf => mf.mf[0]);
@@ -777,6 +957,13 @@ function generarEncabezadoIteracion(tablaId, valoresPrimeraIteracion) {
   return [resultado, valores]
 }
 
+/**
+ * Crea la primera fila de la tabla.
+ * @param tablaId El ID de la tabla.
+ * @param filaValoresPrimeraIteracion Los valores de la fila de la primera iteración.
+ * @param valoresFilaFD Los valores de la fila F.D.
+ * @returns {(string|*[])[]} Fila HTML y valores calculados.
+ */
 function crearFilaPrimeraIteracion(tablaId, filaValoresPrimeraIteracion, valoresFilaFD) {
   const letras = [...new Set(data.mfs.map(e => _.head(e.mf)).sort())];
 
@@ -799,6 +986,12 @@ function crearFilaPrimeraIteracion(tablaId, filaValoresPrimeraIteracion, valores
   return [resultadoHtml, ultimaIteracion];
 }
 
+/**
+ * Incrementa la sumatoria de un MF.
+ * @param tablaId El ID de la tabla.
+ * @param mf El MF.
+ * @param valor El valor calculado que se debe sumar.
+ */
 function incrementarSumatoriaMf(tablaId, mf, valor) {
   if (tablaId === 'tblMfs') {
 
@@ -816,6 +1009,12 @@ function incrementarSumatoriaMf(tablaId, mf, valor) {
   }
 }
 
+/**
+ * Crea el encabezado de la tabla.
+ * @param tablaId El ID de la tabla.
+ * @param tablaMfs Tabla de los MFs.
+ * @returns {(string|{})[]} Encabezado HTML y valores calculados.
+ */
 function crearEncabezadoPrimeraIteracion(tablaId, tablaMfs) {
   const letras = [...new Set(data.mfs.map(e => _.head(e.mf)).sort())];
   const grupos = _.groupBy(data.mfs, mf => mf.mf[0]);
@@ -839,6 +1038,11 @@ function crearEncabezadoPrimeraIteracion(tablaId, tablaMfs) {
   return [filaIteracion, valoresIteracion];
 }
 
+/**
+ * Crea la fila FD.
+ * @param valoresK Los valores de la fila K.
+ * @returns {(string|{})[]} Fila HTML y valores calculados.
+ */
 function crearFilaFD(valoresK) {
   const valoresFilaFD = {};
 
@@ -863,6 +1067,11 @@ function crearFilaFD(valoresK) {
   return [filaFD, valoresFilaFD];
 }
 
+/**
+ * Crea la fila K.
+ * @param tablaMfs Tabla de los MFs.
+ * @returns {(string|*[])[]} Fila K HTML y valores calculados.
+ */
 function crearFilaK(tablaMfs) {
   const letras = [...new Set(data.mfs.map(e => _.head(e.mf)).sort())];
   const grupos = _.groupBy(data.mfs, mf => mf.mf[0]);
@@ -884,6 +1093,11 @@ function crearFilaK(tablaMfs) {
   return [filaK, valoresK];
 }
 
+/**
+ * Crea la tabla de MFs.
+ * @param tablaId El ID de la tabla.
+ * @returns {Array<Object>} Tabla HTML y valores calculados.
+ */
 function crearTablaMfs(tablaId) {
   const tablaMfs = parseTable(document.querySelector(`#${tablaId}`));
 
@@ -898,6 +1112,10 @@ function crearTablaMfs(tablaId) {
   return tablaMfs;
 }
 
+/**
+ * Genera el encabezado de la tabla.
+ * @returns {string} Encabezado HTML.
+ */
 function generarEncabezado() {
   let letras = [...new Set(data.mfs.map(e => _.head(e.mf)).sort())];
 
@@ -919,6 +1137,9 @@ function generarSubencabezado() {
   }).join('');
 }
 
+/**
+ * Actualiza la tabla de cálculos elasticidad.
+ */
 function actualizarTablaCalculosElasticidad() {
   const tblMfsCalculosElasticidad = $('#tblMfsCalculosElasticidad');
   $(tblMfsCalculosElasticidad).find('tbody').empty();
@@ -960,7 +1181,11 @@ function actualizarTablaCalculosElasticidad() {
   tblMfsCalculosElasticidad.DataTable();
 }
 
+/**
+ * Obtiene el UN a partir del tipo de elemento.
+ * @param tipoElemento Tipo de elemento.
+ * @returns {*} UN.
+ */
 function obtenerUn(tipoElemento) {
   return _.find(data.elementos, e => `${e.tipo}${e.id}` === tipoElemento)['UN'];
 }
-
