@@ -226,6 +226,16 @@
             </div>
           </div>
 
+          <div class="form-group row">
+            <label class="col-md-4 control-label"></label>
+            <div class="col-md-5">
+              <div class="alert alert-secondary">
+                NOTA: Recordar ingresar los datos del inverso del elemento que estemos ingresando, por ejemplo si
+                estamos ingresando los datos del elemento G-K debemos ingresar los datos de K-G con los mismos valores.
+              </div>
+            </div>
+          </div>
+
           <!-- Button -->
           <div class="form-group row">
             <label class="col-md-4 control-label"></label>
@@ -236,7 +246,7 @@
 
           <!-- Text input-->
           <div class="form-group row mf">
-            <label class="col-md-4 control-label" for="L">Longitud (L)</label>
+            <label class="col-md-4 control-label" for="L">Longitud (L) [m]</label>
             <div class="col-md-5">
               <input id="L" name="L" type="number" placeholder="Longitud" class="form-control input-md" required="">
 
@@ -245,7 +255,7 @@
 
           <!-- Text input-->
           <div class="form-group row mf">
-            <label class="col-md-4 control-label" for="W">Carga repartida (W)</label>
+            <label class="col-md-4 control-label" for="W">Carga repartida (W) [kN/m]</label>
             <div class="col-md-5">
               <input id="W" name="W" type="number" placeholder="Carga repartida" class="form-control input-md"
                      required="">
@@ -392,6 +402,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.3/jquery.validate.min.js"
         integrity="sha512-37T7leoNS06R80c8Ulq7cdCDU5MNQBwlYoy1TX/WUsLFC2eYNqtKlV0QjH7r8JpG/S0GUMZwebnVFLPd6SU5yg=="
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="scripts/plugins/loadingoverlay.min.js"></script>
+<script>var exports = {};</script>
 <script src="scripts/plugins/jquery.loadTemplate.min.js"></script>
 <script src="scripts/parseTable.js"></script>
 <script src="scripts/utils.js"></script>

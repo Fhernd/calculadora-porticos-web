@@ -62,7 +62,7 @@ function iniciarCapturaDatos(event) {
   $('#btnIniciarCaptura').hide();
   const E = $('#E');
   const Fy = $('#Fy');
-  data['fc'] = parseInt(E.val());
+  data['Fc'] = parseInt(E.val());
   const unidadMedida = $('input[name="unidadMedida"]');
 
   E.prop('disabled', true);
@@ -126,7 +126,7 @@ function guardarElemento(event) {
   $('.elemento').hide(1000);
 
   actualizarTablaElementos(elemento);
-  $('#E').val(data['E']);
+  $('#E').val(data['fc']);
   $('#btnAgregarElemento').removeAttr('disabled');
 }
 
@@ -458,7 +458,7 @@ function crearCargaPuntual(event) {
   let template = (n > 0 ? '<hr>' : '') + `
   <div class="carga-puntual">
         <div class="form-group row mf">
-          <label class="col-md-4 control-label">Carga puntual (P)</label>
+          <label class="col-md-4 control-label">Carga puntual (P) [kN]</label>
           <div class="col-md-5">
             <label>
               <input name="P-${n}" id="P-${n}" type="number" placeholder="Carga puntual" class="form-control input-md"
@@ -483,7 +483,7 @@ function crearCargaPuntual(event) {
         </div>
 
         <div class="form-group row mf centrica-${n}">
-          <label class="col-md-4 control-label">Longitud izquierda (a)</label>
+          <label class="col-md-4 control-label">Longitud izquierda (a) [m]</label>
           <div class="col-md-5">
             <label>
               <input name="a-${n}" id="a-${n}" type="number" placeholder="Longitud izquierda" class="form-control input-md"
@@ -494,7 +494,7 @@ function crearCargaPuntual(event) {
         </div>
 
         <div class="form-group row mf centrica-${n}">
-          <label class="col-md-4 control-label">Longitud derecha (b)</label>
+          <label class="col-md-4 control-label">Longitud derecha (b) [m]</label>
           <div class="col-md-5">
             <label>
               <input name="b-${n}" id="b-${n}" type="number" placeholder="Longitud derecha" class="form-control input-md"
@@ -528,6 +528,7 @@ function crearCargaPuntual(event) {
  */
 function generarTablasIteraciones(event) {
   event.preventDefault();
+  $.LoadingOverlay('show');
 
   sumatoriasMfs = {};
   const tablaIteracionesMfs = generarTablaIteracionesMfs('tblMfs');
@@ -544,10 +545,310 @@ function generarTablasIteraciones(event) {
   tablaIteracionesMfsModuloElasticidad.find('tbody').append(filaMomento);
   divIteracionesMfsModuloElasticidad.empty().append(tablaIteracionesMfsModuloElasticidad);
 
-  const tabla = generarTablaVigas(momentos);
+  const [tablaVigasReacciones, reacciones] = generarTablaVigas(momentos);
+  const tablaColumnasAsts = generarTablasColumnas(momentos, reacciones);
+
+  const [tablaPisos, ases] = generarTablaPisos(momentos, reacciones);
+  const tablaResultados = generarTablaResultados(ases);
 
   const tablasCalculos = $('#tablasCalculos');
-  tablasCalculos.append(tabla);
+  tablasCalculos.append(tablaVigasReacciones);
+  tablasCalculos.append('<br>');
+  tablasCalculos.append('<br>');
+  tablasCalculos.append('<h3>Tabla 2</h3>');
+  tablasCalculos.append('<br>');
+  tablasCalculos.append(tablaColumnasAsts);
+  tablasCalculos.append('<br>');
+  tablasCalculos.append('<br>');
+  tablasCalculos.append('<h3>Tabla 2</h3>');
+  tablasCalculos.append('<br>');
+  tablasCalculos.append(tablaPisos);
+  tablasCalculos.append('<br>');
+  tablasCalculos.append('<br>');
+  tablasCalculos.append('<h3>Resultados</h3>');
+  tablasCalculos.append('<br>');
+  tablasCalculos.append(tablaResultados);
+  $.LoadingOverlay('hide');
+}
+
+function generarTablaResultados(ases) {
+  const tablaResultados = $('<table class="table table-bordered table-hover table-striped">');
+  const tbody = $('<tbody>');
+
+  let mfsVigas = _.filter(data.mfs, e => _.startsWith(e.tipoElemento, 'vg'));
+
+  let gruposPorViga = _.groupBy(mfsVigas, 'tipoElemento');
+
+  let encabezadoFila = $('<tr>');
+  encabezadoFila.append('<td></td>');
+  let letrasFila = $('<tr>');
+  letrasFila.append(`<td></td>`);
+
+  let lmFila = $('<tr>');
+  lmFila.append(`<td class="centered-cell">W</td>`);
+  let asLuzCm2Fila = $('<tr>');
+  asLuzCm2Fila.append(`<td class="centered-cell">P</td>`);
+  let asCm2Fila = $('<tr>');
+  asCm2Fila.append(`<td class="centered-cell">Pe</td>`);
+
+  for (const k of _.keys(gruposPorViga)) {
+    const grupo = gruposPorViga[k];
+    const mfsSinRepeticion = [...new Set(_.map(grupo, e => e.mf.split('-').sort().join('-')))]
+
+    for (const e of mfsSinRepeticion) {
+      const letras = e.split('-');
+      encabezadoFila.append(`<td colspan="2" class="centered-cell">${k}</td>`);
+      letrasFila.append(_.map(letras, f => `<td class="centered-cell">${f}</td>`).join(''));
+
+      let mf = _.find(grupo, g => g.mf === e);
+
+      lmFila.append(`<td class="centered-cell">${0}</td>`);
+      lmFila.append(`<td class="centered-cell">${mf.longitud}</td>`);
+      asLuzCm2Fila.append(`<td class="centered-cell" colspan="2">${0}</td>`);
+      asCm2Fila.append(`<td class="centered-cell">${(ases[e]['primeraColumna'] * 1000).toFixed(5)}</td>`);
+      asCm2Fila.append(`<td class="centered-cell">${(ases[e]['segundaColumna'] * 1000).toFixed(5)}</td>`);
+    }
+  }
+
+
+  tablaResultados.append(tbody.append(encabezadoFila, letrasFila, lmFila, asLuzCm2Fila, asCm2Fila));
+  return tablaResultados;
+}
+
+function generarTablaPisos(momentos, reacciones) {
+  const tabla = $('<table>');
+  tabla.attr('id', 'tblPisos');
+  tabla.addClass('table');
+  tabla.addClass('table-striped');
+  tabla.addClass('table-bordered');
+  const tbody = $('<tbody>');
+
+  const mfsVigas = _.filter(data.mfs, e => _.startsWith(e.tipoElemento, 'vg'));
+  const gruposPorViga = _.groupBy(mfsVigas, 'tipoElemento');
+
+  let primeraFila = $('<tr>');
+  primeraFila.append('<td></td>');
+  let segundaFila = $('<tr>');
+  segundaFila.append(`<td></td>`);
+
+  let terceraFila = $('<tr>');
+  terceraFila.append(`<td class="centered-cell">L (m)</td>`);
+  let momentoFila = $('<tr>');
+  momentoFila.append(`<td class="centered-cell">Momento</td>`);
+  let momentoLuzFila = $('<tr>');
+  momentoLuzFila.append(`<td class="centered-cell">Momento Luz</td>`);
+  let rnLuzFila = $('<tr>');
+  rnLuzFila.append(`<td class="centered-cell">Rn Luz</td>`);
+  let pcalculadoLuzFila = $('<tr>');
+  pcalculadoLuzFila.append(`<td class="centered-cell">Pcalculado Luz</td>`);
+  let rnNodosFila = $('<tr>');
+  rnNodosFila.append(`<td class="centered-cell">Rn Nodos</td>`);
+  let pCalculosNodosFila = $('<tr>');
+  pCalculosNodosFila.append(`<td class="centered-cell">P Calculado Nodos</td>`);
+  let asFila = $('<tr>');
+  asFila.append(`<td class="centered-cell">As</td>`);
+  let asLuzfila = $('<tr>');
+  asLuzfila.append(`<td class="centered-cell">As Luz</td>`);
+
+  let ases = {};
+
+  let contadorViga = 1;
+
+  for (const k of _.keys(gruposPorViga)) {
+    const grupo = gruposPorViga[k];
+    const mfsSinRepeticion = [...new Set(_.map(grupo, e => e.mf.split('-').sort().join('-')))]
+
+    for (const e of mfsSinRepeticion) {
+      const letras = e.split('-');
+      primeraFila.append(`<td colspan="2" class="centered-cell">${k}</td>`);
+      segundaFila.append(_.map(letras, f => `<td class="centered-cell">${f}</td>`).join(''));
+
+      terceraFila.append(`<td class="centered-cell">0</td>`);
+      let mf = _.find(grupo, g => g.mf === e);
+      terceraFila.append(`<td class="centered-cell">${mf.longitud}</td>`);
+
+      let b2 = mf.cargaRepartida;
+      let c135 = 0;
+      let parteI = 0;
+      let parteII = 0;
+
+      if (e === 'G-H' || e === 'H-G') {
+        c135 = momentos[e];
+        parteI = b2 * mf.longitud * (mf.longitud / 2) < 0 ? 0 : b2 * mf.longitud * (mf.longitud / 2);
+        let c3 = mf.cargasPuntuales[0].valor;
+        parteII = c3 * (mf.longitud - mf.longitud / 2) ? 0 : c3 * (mf.longitud - mf.longitud / 2);
+        let c115 = (momentos[e]  + momentos[reverseString(e)]) / mf.longitud
+        let resultado = parteI + parteII + c115;
+        momentoFila.append(`<td class="centered-cell">${resultado.toFixed(8)}</td>`);
+
+        mf = _.find(grupo, g => g.mf === reverseString(e));
+        parteI = b2 * mf.longitud * (mf.longitud / 2) < 0 ? 0 : b2 * mf.longitud * (mf.longitud / 2);
+        let c116 = reacciones[e]['segundaLetra'];
+        parteII = c3 * (mf.longitud - mf.longitud / 2) ? 0 : c3 * (mf.longitud - mf.longitud / 2);
+        resultado = parteI + parteII + (-c116 * mf.longitud) + (-c115);
+        momentoFila.append(`<td class="centered-cell">${resultado.toFixed(8)}</td>`);
+      } else if (e === 'H-I' || e === 'I-H') {
+        parteI = (momentos[e]  + momentos[reverseString(e)]) / mf.longitud;
+        momentoFila.append(`<td class="centered-cell">${parteI.toFixed(8)}</td>`);
+
+        parteII = b2 * (mf.longitud / 2)  + (-reacciones[e]['segundaLetra'] * mf.longitud)
+                    + momentos[reverseString(e)];
+        momentoFila.append(`<td class="centered-cell">${parteII.toFixed(8)}</td>`);
+      } else if (e === 'I-J' || e === 'J-I') {
+        parteI = 0;
+
+        for (const c of mf.cargasPuntuales) {
+          const valor = c.valor * (mf.longitud - c.longitudIzquierda)
+          parteI += valor < 0 ? 0 : valor;
+        }
+
+        parteI += momentos[e];
+        momentoFila.append(`<td class="centered-cell">${parteI.toFixed(8)}</td>`);
+
+        mf = _.find(grupo, g => g.mf === reverseString(e));
+        parteII = b2 * mf.longitud * (mf.longitud / 2);
+        parteII = parteII < 0 ? 0 : parteII;
+
+        for (const c of mf.cargasPuntuales) {
+          const valor = c.valor * (mf.longitud - c.longitudIzquierda);
+          parteII += valor < 0 ? 0 : valor;
+        }
+
+        parteII += -reacciones[e]['primeraLetra'] * mf.longitud + momentos[e];
+        momentoFila.append(`<td class="centered-cell">${parteII.toFixed(8)}</td>`);
+      } else if (e === 'C-D' || e === 'D-C') {
+        parteI = momentos[e];
+        momentoFila.append(`<td class="centered-cell">${parteI.toFixed(8)}</td>`);
+
+        mf = _.find(grupo, g => g.mf === reverseString(e));
+        parteII = b2 * mf.longitud * (mf.longitud / 2);
+        parteII = parteII < 0 ? 0 : parteII;
+        parteII += -reacciones[e]['primeraLetra'] * mf.longitud;
+        parteII += momentos[e];
+        momentoFila.append(`<td class="centered-cell">${parteII.toFixed(8)}</td>`);
+      } else if (e === 'D-E' || e === 'E-D') {
+        parteI = momentos[e]
+        momentoFila.append(`<td class="centered-cell">${parteI.toFixed(8)}</td>`);
+
+        mf = _.find(grupo, g => g.mf === reverseString(e));
+        parteII = b2 * mf.longitud * (mf.longitud / 2);
+        parteII = parteII < 0 ? 0 : parteII;
+        parteII += -reacciones[e]['primeraLetra'] * mf.longitud + momentos[e];
+        momentoFila.append(`<td class="centered-cell">${parteII.toFixed(8)}</td>`);
+      } else if (e === 'A-B' || e === 'B-A') {
+        parteI = momentos[e];
+        momentoFila.append(`<td class="centered-cell">${parteI.toFixed(8)}</td>`);
+
+        mf = _.find(grupo, g => g.mf === reverseString(e));
+        parteII = b2 * mf.longitud * (mf.longitud / 2);
+        parteII = parteII < 0 ? 0 : parteII;
+        parteII += -reacciones[e]['primeraLetra'] * mf.longitud + momentos[e];
+        momentoFila.append(`<td class="centered-cell">${parteII.toFixed(8)}</td>`);
+      }
+
+      momentoLuzFila.append(`<td class="centered-cell" colspan="2">${0}</td>`);
+      rnLuzFila.append(`<td class="centered-cell" colspan="2">${0}</td>`);
+      pcalculadoLuzFila.append(`<td class="centered-cell" colspan="2">${0}</td>`);
+
+      let elemento = _.find(data.elementos, g => `${g.tipo}-${g.id} === ${e.tipoElemento}`);
+
+      let rnNodosParteI = Math.abs(parteI) / (0.9 * elemento.B * (elemento.H - 0.05));
+      rnNodosFila.append(`<td class="centered-cell">${rnNodosParteI.toFixed(8)}</td>`);
+
+      let pCalculadoNodosParteI = (0.85 * data.Fc / data.Fy) * (1 - Math.sqrt(1 - (2 * rnNodosParteI / (0.85 * 1000 * data.Fc))));
+      pCalculosNodosFila.append(`<td class="centered-cell">${pCalculadoNodosParteI.toFixed(8)}</td>`);
+
+      let rnNodosParteII = Math.abs(parteII) / (0.9 * elemento.B * (elemento.H - 0.05));
+      rnNodosFila.append(`<td class="centered-cell">${rnNodosParteII.toFixed(8)}</td>`);
+
+      let pCalculadoNodosParteII = (0.85 * data.Fc / data.Fy) * (1 - Math.sqrt(1 - (2 * rnNodosParteII / (0.85 * 1000 * data.Fc))));
+      pCalculosNodosFila.append(`<td class="centered-cell">${pCalculadoNodosParteII.toFixed(8)}</td>`);
+
+      let asParteI = pCalculadoNodosParteI * elemento.B * (elemento.H - 0.05);
+      asFila.append(`<td class="centered-cell">${asParteI.toFixed(8)}</td>`);
+
+      let asParteII = pCalculadoNodosParteII * elemento.B * (elemento.H - 0.05);
+      asFila.append(`<td class="centered-cell">${asParteII.toFixed(8)}</td>`);
+
+      asLuzfila.append(`<td class="centered-cell" colspan="2">${0}</td>`);
+
+      ases[e] = {
+        primeraColumna: asParteI,
+        segundaColumna: asParteII
+      }
+    }
+
+    console.log();
+  }
+
+  return [tabla.append(tbody.append(primeraFila, segundaFila, terceraFila, momentoFila, momentoLuzFila, rnLuzFila, pcalculadoLuzFila, rnNodosFila, pCalculosNodosFila, asFila, asLuzfila)), ases];
+}
+
+function generarTablasColumnas(momentos, reacciones) {
+  const tabla = $('<table>');
+
+  tabla.addClass('table');
+  tabla.addClass('table-striped');
+  tabla.addClass('table-bordered');
+  const tbody = $('<tbody>');
+
+  const mfsColumnas = _.filter(data.mfs, e => _.startsWith(e.tipoElemento, 'col'));
+
+  const gruposPorTipoColumna = _.groupBy(mfsColumnas, 'tipoElemento');
+
+  const primeraFila = $('<tr>');
+  primeraFila.append('<td></td>');
+  const segundaFila = $('<tr>');
+  segundaFila.append(`<td></td>`);
+  const terceraFila = $('<tr>');
+  terceraFila.append(`<td class="centered-cell">P. último</td>`);
+  const cuartaFila = $('<tr>');
+  cuartaFila.append(`<td class="centered-cell">Resistencia Axial</td>`);
+  const quintaFila = $('<tr>');
+  quintaFila.append(`<td class="centered-cell">Ecuación</td>`);
+  const sextaFila = $('<tr>');
+  sextaFila.append(`<td class="centered-cell">Ast m^2</td>`);
+  const septimaFila = $('<tr>');
+  septimaFila.append(`<td class="centered-cell">Ast cm^2</td>`);
+
+  for (const k of _.keys(gruposPorTipoColumna)) {
+    const grupo = gruposPorTipoColumna[k];
+    const mfsSinRepeticion = [...new Set(_.map(grupo, e => e.mf.split('-').sort().join('-')))]
+
+    for (const e of mfsSinRepeticion) {
+      const letras = e.split('-');
+      primeraFila.append(`<td colspan="2" class="centered-cell">${k}</td>`);
+      segundaFila.append(_.map(letras, f => `<td class="centered-cell">${f}</td>`).join(''));
+
+      const suma = Math.abs(_.sum((reacciones[e] ? [reacciones[e]['primeraLetra']] : [0])) +
+                  _.sum((reacciones[e] ? [reacciones[e]['segundaLetra']] : [0])));
+      terceraFila.append(`<td class="centered-cell" colspan="2">${suma.toFixed(2)}</td>`);
+      cuartaFila.append(`<td class="centered-cell" colspan="2">${(suma / 0.75).toFixed(2)}</td>`);
+
+      const mf = _.find(data.mfs, g => g.mf === e);
+      const elemento = _.find(data.elementos, g => `${g.tipo}${g.id}` === mf.tipoElemento);
+      let x = 0;
+      const c125 = suma / 0.75;
+      const b51 = elemento.B;
+      const b53 = data['Fc'];
+      const c51 = elemento.H;
+      const e53 = data['Fy'];
+
+      const url = `https://porticosdci.co/goal-seek/index.php?fc=${data.Fc}&B51=${b51}&C51=${c51}&C125=${c125}&E53=${e53}`;
+
+      loadData(`${url}`, function (response) {
+        console.log(response);
+        const result = response.result;
+        quintaFila.append(`<td class="centered-cell" colspan="2">0</td>`);
+        sextaFila.append(`<td class="centered-cell" colspan="2">${(result).toFixed(8)}</td>`);
+        septimaFila.append(`<td class="centered-cell" colspan="2">${_.max([result * 10000, 0.1 * b51 * c51 * 100 * 100]).toFixed(8)}</td>`);
+      }, function (error) {
+        console.log(error);
+      });
+    }
+  }
+
+  return tabla.append(tbody.append(primeraFila, segundaFila, terceraFila, cuartaFila, quintaFila, sextaFila, septimaFila));
 }
 
 /**
@@ -565,22 +866,25 @@ function generarTablaVigas(momentos) {
 
   let gruposPorViga = _.groupBy(mfsVigas, 'tipoElemento');
 
-  let primeraFila = $('<tr>');
-  primeraFila.append('<td></td>');
-  let segundaFila = $('<tr>');
-  segundaFila.append(`<td></td>`);
-  let terceraFila = $('<tr>');
-  terceraFila.append(`<td class="centered-cell">W</td>`);
-  let cuartaFila = $('<tr>');
-  cuartaFila.append(`<td class="centered-cell">P</td>`);
-  let quintaFila = $('<tr>');
-  quintaFila.append(`<td class="centered-cell">Pe</td>`);
-  let sextaFila = $('<tr>');
-  sextaFila.append(`<td class="centered-cell">Pe</td>`);
-  let septimaFila = $('<tr>');
-  septimaFila.append(`<td class="centered-cell">Momento</td>`);
-  let octavaFila = $('<tr>');
-  octavaFila.append(`<td class="centered-cell">Reacción</td>`);
+  let encabezadoFila = $('<tr>');
+  encabezadoFila.append('<td></td>');
+  let letrasFila = $('<tr>');
+  letrasFila.append(`<td></td>`);
+
+  let WKnFila = $('<tr>');
+  WKnFila.append(`<td class="centered-cell">W</td>`);
+  let pKnFila = $('<tr>');
+  pKnFila.append(`<td class="centered-cell">P</td>`);
+  let peFila1 = $('<tr>');
+  peFila1.append(`<td class="centered-cell">Pe</td>`);
+  let peFila2 = $('<tr>');
+  peFila2.append(`<td class="centered-cell">Pe</td>`);
+  let momentosKnFila = $('<tr>');
+  momentosKnFila.append(`<td class="centered-cell">Momento</td>`);
+  let filaReacciones = $('<tr>');
+  filaReacciones.append(`<td class="centered-cell">Reacción</td>`);
+
+  const reacciones = {}
 
   for (const k of _.keys(gruposPorViga)) {
     const grupo = gruposPorViga[k];
@@ -588,8 +892,15 @@ function generarTablaVigas(momentos) {
 
     for (const e of mfsSinRepeticion) {
       const letras = e.split('-');
-      primeraFila.append(`<td colspan="2" class="centered-cell">${k}</td>`);
-      segundaFila.append(_.map(letras, f => `<td class="centered-cell">${f}</td>`).join(''));
+
+      if (!reacciones[e]) {
+        reacciones[e] = {
+          'mf': e
+        };
+      }
+
+      encabezadoFila.append(`<td colspan="2" class="centered-cell">${k}</td>`);
+      letrasFila.append(_.map(letras, f => `<td class="centered-cell">${f}</td>`).join(''));
 
       const mf1 = _.find(data.mfs, f => f.mf === e);
       const mf2 = _.find(data.mfs, f => f.mf === reverseString(e));
@@ -603,39 +914,39 @@ function generarTablaVigas(momentos) {
         if (mf1.cargaRepartida && mf2.cargaRepartida) {
           resultado1 = mf1.cargaRepartida * mf1.longitud / 2;
           sumaPrimeraColumna += resultado1;
-          terceraFila.append(`<td class="centered-cell">${resultado1}</td>`);
+          WKnFila.append(`<td class="centered-cell">${resultado1}</td>`);
 
           resultado2 = mf2.cargaRepartida * mf2.longitud / 2;
           sumaSegundaColumna += resultado2;
-          terceraFila.append(`<td class="centered-cell">${resultado2}</td>`);
+          WKnFila.append(`<td class="centered-cell">${resultado2}</td>`);
         }
 
         if (mf1.cargasPuntuales.length) {
           if (mf1.cargasPuntuales[0].esExcentrica) {
             resultado1 = mf1.cargasPuntuales[0].valor / mf1.longitud * mf1.cargasPuntuales[0].longitudIzquierda
             sumaPrimeraColumna += resultado1;
-            cuartaFila.append(`<td class="centered-cell">${resultado1}</td>`);
+            pKnFila.append(`<td class="centered-cell">${resultado1}</td>`);
           } else {
             resultado1 = mf1.cargasPuntuales[0].valor / 2;
             sumaPrimeraColumna += resultado1;
-            cuartaFila.append(`<td class="centered-cell">${resultado1}</td>`);
+            pKnFila.append(`<td class="centered-cell">${resultado1}</td>`);
           }
 
           if (mf1.cargasPuntuales[0].esExcentrica) {
             resultado1 = mf1.cargasPuntuales[0].valor / mf1.longitud * mf1.cargasPuntuales[0].longitudDerecha;
             sumaPrimeraColumna += resultado1;
-            quintaFila.append(`<td class="centered-cell">${resultado1}</td>`);
+            peFila1.append(`<td class="centered-cell">${resultado1}</td>`);
 
             resultado1 = mf1.cargasPuntuales[0].valor / mf1.longitud * mf1.cargasPuntuales[0].longitudDerecha;
             sumaPrimeraColumna += resultado1;
-            sextaFila.append(`<td class="centered-cell">${resultado1}</td>`);
+            peFila2.append(`<td class="centered-cell">${resultado1}</td>`);
           } else {
-            quintaFila.append(`<td class="centered-cell">0</td>`);
+            peFila1.append(`<td class="centered-cell">0</td>`);
           }
         } else {
-          cuartaFila.append(`<td class="centered-cell">0</td>`);
-          quintaFila.append(`<td class="centered-cell">0</td>`);
-          sextaFila.append(`<td class="centered-cell">0</td>`);
+          pKnFila.append(`<td class="centered-cell">0</td>`);
+          peFila1.append(`<td class="centered-cell">0</td>`);
+          peFila2.append(`<td class="centered-cell">0</td>`);
         }
 
         if (mf2.cargasPuntuales.length) {
@@ -643,29 +954,29 @@ function generarTablaVigas(momentos) {
             resultado2 = mf2.cargasPuntuales[0].valor / mf2.longitud * mf2.cargasPuntuales[0].longitudDerecha;
             sumaSegundaColumna += resultado2;
 
-            cuartaFila.append(`<td class="centered-cell">${resultado2}</td>`);
+            pKnFila.append(`<td class="centered-cell">${resultado2}</td>`);
           } else {
             resultado2 = mf2.cargasPuntuales[0].valor / 2;
             sumaSegundaColumna += resultado2;
 
-            cuartaFila.append(`<td class="centered-cell">${resultado2}</td>`);
+            pKnFila.append(`<td class="centered-cell">${resultado2}</td>`);
           }
 
           if (mf2.cargasPuntuales[0].esExcentrica) {
             resultado2 = mf2.cargasPuntuales[0].valor * mf2.longitud * mf2.cargasPuntuales[0].longitudDerecha;
             sumaSegundaColumna += resultado2;
-            quintaFila.append(`<td class="centered-cell">${resultado2}</td>`);
+            peFila1.append(`<td class="centered-cell">${resultado2}</td>`);
 
             resultado2 = mf1.cargasPuntuales[0].valor / mf1.longitud * mf1.cargasPuntuales[0].longitudDerecha;
             sumaSegundaColumna += resultado2;
-            sextaFila.append(`<td class="centered-cell">${resultado2}</td>`);
+            peFila2.append(`<td class="centered-cell">${resultado2}</td>`);
           } else {
-            quintaFila.append(`<td class="centered-cell">0</td>`);
+            peFila1.append(`<td class="centered-cell">0</td>`);
           }
         } else {
-          cuartaFila.append(`<td class="centered-cell">0</td>`);
-          quintaFila.append(`<td class="centered-cell">0</td>`);
-          sextaFila.append(`<td class="centered-cell">0</td>`);
+          pKnFila.append(`<td class="centered-cell">0</td>`);
+          peFila1.append(`<td class="centered-cell">0</td>`);
+          peFila2.append(`<td class="centered-cell">0</td>`);
         }
 
         const momento1 = momentos[e];
@@ -677,28 +988,31 @@ function generarTablaVigas(momentos) {
         resultado2 = -resultado1;
         sumaSegundaColumna += resultado2;
 
-        septimaFila.append(`<td>${resultado1}</td>`);
-        septimaFila.append(`<td>${resultado2}</td>`);
+        momentosKnFila.append(`<td>${resultado1}</td>`);
+        momentosKnFila.append(`<td>${resultado2}</td>`);
 
-        octavaFila.append(`<td>${sumaPrimeraColumna}</td>`);
-        octavaFila.append(`<td>${sumaSegundaColumna}</td>`);
+        filaReacciones.append(`<td>${sumaPrimeraColumna}</td>`);
+        filaReacciones.append(`<td>${sumaSegundaColumna}</td>`);
+
+        reacciones[e]['primeraLetra'] = sumaPrimeraColumna;
+        reacciones[e]['segundaLetra'] = sumaSegundaColumna;
       }
     }
   }
 
-  tbody.append(primeraFila);
-  tbody.append(segundaFila);
-  tbody.append(terceraFila);
-  tbody.append(cuartaFila);
-  tbody.append(quintaFila);
-  tbody.append(sextaFila);
-  tbody.append(septimaFila);
-  tbody.append(octavaFila);
+  tbody.append(encabezadoFila);
+  tbody.append(letrasFila);
+  tbody.append(WKnFila);
+  tbody.append(pKnFila);
+  tbody.append(peFila1);
+  tbody.append(peFila2);
+  tbody.append(momentosKnFila);
+  tbody.append(filaReacciones);
 
 
   tabla.append(tbody);
 
-  return tabla;
+  return [tabla, reacciones];
 }
 
 /**

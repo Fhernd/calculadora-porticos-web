@@ -78,3 +78,14 @@ function isEmptyString(valor) {
 function reverseString(s){
   return s.split("").reverse().join("");
 }
+
+function loadData(url, successCallback, errorCallback) {
+  return new Promise((resolve, reject) => {
+    $.ajax({
+      method: 'GET',
+      url: url,
+      dataType: 'json',
+      async: false
+    }).done(successCallback).fail(errorCallback);
+  });
+}
