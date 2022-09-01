@@ -675,7 +675,7 @@ function generarTablaPisos(momentos, reacciones) {
       if (e === 'G-H' || e === 'H-G') {
         c135 = momentos[e];
         parteI = b2 * mf.longitud * (mf.longitud / 2) < 0 ? 0 : b2 * mf.longitud * (mf.longitud / 2);
-        let c3 = mf.cargasPuntuales[0].valor;
+        let c3 = mf.cargasPuntuales.length ? mf.cargasPuntuales[0].valor : 0;
         parteII = c3 * (mf.longitud - mf.longitud / 2) ? 0 : c3 * (mf.longitud - mf.longitud / 2);
         let c115 = (momentos[e]  + momentos[reverseString(e)]) / mf.longitud
         let resultado = parteI + parteII + c115;
