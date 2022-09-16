@@ -796,20 +796,20 @@ function generarTablasColumnas(momentos, reacciones) {
 
   const gruposPorTipoColumna = _.groupBy(mfsColumnas, 'tipoElemento');
 
-  const primeraFila = $('<tr>');
-  primeraFila.append('<td></td>');
-  const segundaFila = $('<tr>');
-  segundaFila.append(`<td></td>`);
-  const terceraFila = $('<tr>');
-  terceraFila.append(`<td class="centered-cell">P. último</td>`);
-  const cuartaFila = $('<tr>');
-  cuartaFila.append(`<td class="centered-cell">Resistencia Axial</td>`);
-  const quintaFila = $('<tr>');
-  quintaFila.append(`<td class="centered-cell">Ecuación</td>`);
-  const sextaFila = $('<tr>');
-  sextaFila.append(`<td class="centered-cell">Ast m^2</td>`);
-  const septimaFila = $('<tr>');
-  septimaFila.append(`<td class="centered-cell">Ast cm^2</td>`);
+  const encabezadoFila = $('<tr>');
+  encabezadoFila.append('<td></td>');
+  const subEncabezadoFila = $('<tr>');
+  subEncabezadoFila.append(`<td></td>`);
+  const pUltimoFila = $('<tr>');
+  pUltimoFila.append(`<td class="centered-cell">P. último</td>`);
+  const resistenciaAxialFila = $('<tr>');
+  resistenciaAxialFila.append(`<td class="centered-cell">Resistencia Axial</td>`);
+  const ecuacionFila = $('<tr>');
+  ecuacionFila.append(`<td class="centered-cell">Ecuación</td>`);
+  const astM2Fila = $('<tr>');
+  astM2Fila.append(`<td class="centered-cell">Ast m^2</td>`);
+  const astCm2Fila = $('<tr>');
+  astCm2Fila.append(`<td class="centered-cell">Ast cm^2</td>`);
 
   for (const k of _.keys(gruposPorTipoColumna)) {
     const grupo = gruposPorTipoColumna[k];
@@ -817,13 +817,27 @@ function generarTablasColumnas(momentos, reacciones) {
 
     for (const e of mfsSinRepeticion) {
       const letras = e.split('-');
-      primeraFila.append(`<td colspan="2" class="centered-cell">${k}</td>`);
-      segundaFila.append(_.map(letras, f => `<td class="centered-cell">${f}</td>`).join(''));
+      encabezadoFila.append(`<td colspan="2" class="centered-cell">${k}</td>`);
+      subEncabezadoFila.append(_.map(letras, f => `<td class="centered-cell">${f}</td>`).join(''));
 
-      const suma = Math.abs(_.sum((reacciones[e] ? [reacciones[e]['primeraLetra']] : [0])) +
+      let suma = Math.abs(_.sum((reacciones[e] ? [reacciones[e]['primeraLetra']] : [0])) +
                   _.sum((reacciones[e] ? [reacciones[e]['segundaLetra']] : [0])));
-      terceraFila.append(`<td class="centered-cell" colspan="2">${suma.toFixed(2)}</td>`);
-      cuartaFila.append(`<td class="centered-cell" colspan="2">${(suma / 0.75).toFixed(2)}</td>`);
+      if (suma === 0) {
+        for (const r of _.keys(reacciones)) {
+          const reaccionActual = reacciones[r];
+          if (r[0] === e[0] || r[2] === e[0] ||
+              r[0] === e[2] || r[2] === e[2]) {
+            if (r[0] === e[0] || r[0] === e[2]) {
+              suma += Math.abs(reacciones[r]['primeraLetra']);
+            } else if (r[2] === e[0] || r[2] === e[2]) {
+              suma += Math.abs(reacciones[r]['segundaLetra']);
+            }
+          }
+        }
+      }
+
+      pUltimoFila.append(`<td class="centered-cell" colspan="2">${suma.toFixed(2)}</td>`);
+      resistenciaAxialFila.append(`<td class="centered-cell" colspan="2">${(suma / 0.75).toFixed(2)}</td>`);
 
       const mf = _.find(data.mfs, g => g.mf === e);
       const elemento = _.find(data.elementos, g => `${g.tipo}${g.id}` === mf.tipoElemento);
@@ -839,16 +853,16 @@ function generarTablasColumnas(momentos, reacciones) {
       loadData(`${url}`, function (response) {
         console.log(response);
         const result = response.result;
-        quintaFila.append(`<td class="centered-cell" colspan="2">0</td>`);
-        sextaFila.append(`<td class="centered-cell" colspan="2">${(result).toFixed(8)}</td>`);
-        septimaFila.append(`<td class="centered-cell" colspan="2">${_.max([result * 10000, 0.1 * b51 * c51 * 100 * 100]).toFixed(8)}</td>`);
+        ecuacionFila.append(`<td class="centered-cell" colspan="2">0</td>`);
+        astM2Fila.append(`<td class="centered-cell" colspan="2">${(result).toFixed(8)}</td>`);
+        astCm2Fila.append(`<td class="centered-cell" colspan="2">${(result * 10000).toFixed(8)}</td>`);
       }, function (error) {
         console.log(error);
       });
     }
   }
 
-  return tabla.append(tbody.append(primeraFila, segundaFila, terceraFila, cuartaFila, quintaFila, sextaFila, septimaFila));
+  return tabla.append(tbody.append(encabezadoFila, subEncabezadoFila, pUltimoFila, resistenciaAxialFila, ecuacionFila, astM2Fila, astCm2Fila));
 }
 
 /**
