@@ -552,20 +552,21 @@ function generarTablasIteraciones(event) {
   const tablaResultados = generarTablaResultados(ases);
 
   const tablasCalculos = $('#tablasCalculos');
+  tablasCalculos.append('<h3>Equilibrio de la viga</h3>');
   tablasCalculos.append(tablaVigasReacciones);
   tablasCalculos.append('<br>');
   tablasCalculos.append('<br>');
-  tablasCalculos.append('<h3>Tabla 2</h3>');
+  tablasCalculos.append('<h3>Diseño de columnas</h3>');
   tablasCalculos.append('<br>');
   tablasCalculos.append(tablaColumnasAsts);
   tablasCalculos.append('<br>');
   tablasCalculos.append('<br>');
-  tablasCalculos.append('<h3>Tabla 2</h3>');
+  tablasCalculos.append('<h3>Diseño Vigas</h3>');
   tablasCalculos.append('<br>');
   tablasCalculos.append(tablaPisos);
   tablasCalculos.append('<br>');
   tablasCalculos.append('<br>');
-  tablasCalculos.append('<h3>Resultados</h3>');
+  tablasCalculos.append('<h3>Tabla de Resultados</h3>');
   tablasCalculos.append('<br>');
   tablasCalculos.append(tablaResultados);
   $.LoadingOverlay('hide');
