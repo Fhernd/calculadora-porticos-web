@@ -669,85 +669,57 @@ function generarTablaPisos(momentos, reacciones) {
       terceraFila.append(`<td class="centered-cell">${mf.longitud}</td>`);
 
       let b2 = mf.cargaRepartida;
-      let c135 = 0;
+      let longitud = 0;
       let parteI = 0;
       let parteII = 0;
 
-      if (e === 'G-H' || e === 'H-G') {
-        c135 = momentos[e];
-        parteI = b2 * mf.longitud * (mf.longitud / 2) < 0 ? 0 : b2 * mf.longitud * (mf.longitud / 2);
-        let c3 = mf.cargasPuntuales.length ? mf.cargasPuntuales[0].valor : 0;
-        parteII = c3 * (mf.longitud - mf.longitud / 2) ? 0 : c3 * (mf.longitud - mf.longitud / 2);
-        let c115 = (momentos[e]  + momentos[reverseString(e)]) / mf.longitud
-        let resultado = parteI + parteII + c115;
-        momentoFila.append(`<td class="centered-cell">${resultado.toFixed(8)}</td>`);
-
-        mf = _.find(grupo, g => g.mf === reverseString(e));
-        parteI = b2 * mf.longitud * (mf.longitud / 2) < 0 ? 0 : b2 * mf.longitud * (mf.longitud / 2);
-        let c116 = reacciones[e]['segundaLetra'];
-        parteII = c3 * (mf.longitud - mf.longitud / 2) ? 0 : c3 * (mf.longitud - mf.longitud / 2);
-        resultado = parteI + parteII + (-c116 * mf.longitud) + (-c115);
-        momentoFila.append(`<td class="centered-cell">${resultado.toFixed(8)}</td>`);
-      } else if (e === 'H-I' || e === 'I-H') {
-        parteI = (momentos[e]  + momentos[reverseString(e)]) / mf.longitud;
-        momentoFila.append(`<td class="centered-cell">${parteI.toFixed(8)}</td>`);
-
-        parteII = b2 * (mf.longitud / 2)  + (-reacciones[e]['segundaLetra'] * mf.longitud)
-                    + momentos[reverseString(e)];
-        momentoFila.append(`<td class="centered-cell">${parteII.toFixed(8)}</td>`);
-      } else if (e === 'I-J' || e === 'J-I') {
-        parteI = 0;
-
-        for (const c of mf.cargasPuntuales) {
-          const valor = c.valor * (mf.longitud - c.longitudIzquierda)
-          parteI += valor < 0 ? 0 : valor;
-        }
-
-        parteI += momentos[e];
-        momentoFila.append(`<td class="centered-cell">${parteI.toFixed(8)}</td>`);
-
-        mf = _.find(grupo, g => g.mf === reverseString(e));
-        parteII = b2 * mf.longitud * (mf.longitud / 2);
-        parteII = parteII < 0 ? 0 : parteII;
-
-        for (const c of mf.cargasPuntuales) {
-          const valor = c.valor * (mf.longitud - c.longitudIzquierda);
-          parteII += valor < 0 ? 0 : valor;
-        }
-
-        parteII += -reacciones[e]['primeraLetra'] * mf.longitud + momentos[e];
-        momentoFila.append(`<td class="centered-cell">${parteII.toFixed(8)}</td>`);
-      } else if (e === 'C-D' || e === 'D-C') {
-        parteI = momentos[e];
-        momentoFila.append(`<td class="centered-cell">${parteI.toFixed(8)}</td>`);
-
-        mf = _.find(grupo, g => g.mf === reverseString(e));
-        parteII = b2 * mf.longitud * (mf.longitud / 2);
-        parteII = parteII < 0 ? 0 : parteII;
-        parteII += -reacciones[e]['primeraLetra'] * mf.longitud;
-        parteII += momentos[e];
-        momentoFila.append(`<td class="centered-cell">${parteII.toFixed(8)}</td>`);
-      } else if (e === 'D-E' || e === 'E-D') {
-        parteI = momentos[e]
-        momentoFila.append(`<td class="centered-cell">${parteI.toFixed(8)}</td>`);
-
-        mf = _.find(grupo, g => g.mf === reverseString(e));
-        parteII = b2 * mf.longitud * (mf.longitud / 2);
-        parteII = parteII < 0 ? 0 : parteII;
-        parteII += -reacciones[e]['primeraLetra'] * mf.longitud + momentos[e];
-        momentoFila.append(`<td class="centered-cell">${parteII.toFixed(8)}</td>`);
-      } else if (e === 'A-B' || e === 'B-A') {
-        parteI = momentos[e];
-        momentoFila.append(`<td class="centered-cell">${parteI.toFixed(8)}</td>`);
-
-        mf = _.find(grupo, g => g.mf === reverseString(e));
-        parteII = b2 * mf.longitud * (mf.longitud / 2);
-        parteII = parteII < 0 ? 0 : parteII;
-        parteII += -reacciones[e]['primeraLetra'] * mf.longitud + momentos[e];
-        momentoFila.append(`<td class="centered-cell">${parteII.toFixed(8)}</td>`);
+      let suma = 0;
+      // =IF((($B$2*C135*(C135/2))) < 0;0;(($B$2*C135*(C135/2)))) + IF(($C$3*(C135-($D$3/2)))<0;0;($C$3*(C135-($D$3/2)))) + (-$C$116*C135) + $C$115
+      if (mf.cargaRepartida) {
+        b2 = mf.cargaRepartida;
+        suma += b2 * longitud * (longitud / 2) < 0 ? 0 : b2 * longitud * (longitud / 2);
       }
 
-      momentoLuzFila.append(`<td class="centered-cell" colspan="2">${0}</td>`);
+      if (mf.cargasPuntuales.length) {
+        for(const carga of mf.cargasPuntuales) {
+          if (!carga.esExcentrica) {
+            suma += carga.valor * (longitud - (mf.longitud / 2)) < 0 ? 0 : carga.valor * (longitud - (mf.longitud / 2));
+          } else {
+            // IF(($C$11*(G135-($E$11)))<0;0;($C$11*(G135-($E$11))))
+            suma += carga.valor * (longitud - carga.longitudIzquierda) < 0 ? 0 : carga.valor * (longitud - carga.longitudIzquierda);
+          }
+        }
+      }
+      //  (-$C$116*C135) + $C$115
+      suma += momentos[reverseString(e)];
+      parteI = suma;
+      momentoFila.append(`<td class="centered-cell">${suma.toFixed(8)}</td>`);
+
+      longitud = mf.longitud;
+      suma = 0;
+
+      if (mf.cargaRepartida) {
+        b2 = mf.cargaRepartida;
+        suma += b2 * longitud * (longitud / 2) < 0 ? 0 : b2 * longitud * (longitud / 2);
+      }
+
+      if (mf.cargasPuntuales.length) {
+        for(const carga of mf.cargasPuntuales) {
+          if (!carga.esExcentrica) {
+            suma += carga.valor * (longitud - (mf.longitud / 2)) < 0 ? 0 : carga.valor * (longitud - (mf.longitud / 2));
+          } else {
+            // IF(($C$11*(G135-($E$11)))<0;0;($C$11*(G135-($E$11))))
+            suma += carga.valor * (longitud - carga.longitudIzquierda) < 0 ? 0 : carga.valor * (longitud - carga.longitudIzquierda);
+          }
+        }
+      }
+      //  (-$C$116*C135) + $C$115
+      suma += momentos[reverseString(e)];
+      suma += (-reacciones[e]['segundaLetra'] * longitud);
+      parteII = suma;
+      momentoFila.append(`<td class="centered-cell">${suma.toFixed(8)}</td>`);
+
+      momentoLuzFila.append(`<td class="centered-cell" colspan="2">${mf.longitud / 2}</td>`);
       rnLuzFila.append(`<td class="centered-cell" colspan="2">${0}</td>`);
       pcalculadoLuzFila.append(`<td class="centered-cell" colspan="2">${0}</td>`);
 
