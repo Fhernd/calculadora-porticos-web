@@ -62,7 +62,7 @@ function iniciarCapturaDatos(event) {
   $('#btnIniciarCaptura').hide();
   const E = $('#E');
   const Fy = $('#Fy');
-  data['Fc'] = parseInt(E.val());
+  data['Fc'] = parseFloat(E.val());
   const unidadMedida = $('input[name="unidadMedida"]');
 
   E.prop('disabled', true);
@@ -70,7 +70,7 @@ function iniciarCapturaDatos(event) {
   $('.captura').show();
   $('.data').show();
 
-  data['E'] = 3900 * Math.sqrt(parseInt(E.val())) * 1000;
+  data['E'] = 3900 * Math.sqrt(data['Fc']) * 1000;
   data['unidadMedida'] = unidadMedida.val();
   data['Fy'] = parseInt(Fy.val());
 }
@@ -349,12 +349,6 @@ function generarFilaMfConCargaRepartida(mf, mcm, signo) {
 
   let denominador = 12;
 
-  if (mf.mf === 'A-B') {
-    denominador = 30;
-  } else if (mf.mf === 'B-A') {
-    denominador = 20;
-  }
-
   const Mf = signo * mf.cargaRepartida * Math.pow(mf.longitud, 2) / denominador;
 
   row.append(`<td>${establecerAlMenosNDecimales(Mf)}</td>`);
@@ -528,7 +522,7 @@ function crearCargaPuntual(event) {
  */
 function generarTablasIteraciones(event) {
   event.preventDefault();
-  $.LoadingOverlay('show');
+  // $.LoadingOverlay('show');
 
   sumatoriasMfs = {};
   const tablaIteracionesMfs = generarTablaIteracionesMfs('tblMfs');
@@ -545,7 +539,7 @@ function generarTablasIteraciones(event) {
   tablaIteracionesMfsModuloElasticidad.find('tbody').append(filaMomento);
   divIteracionesMfsModuloElasticidad.empty().append(tablaIteracionesMfsModuloElasticidad);
 
-  const [tablaVigasReacciones, reacciones] = generarTablaVigas(momentos);
+  const [tablaVigasReacciones, reacciones] = generarTablaReacciones(momentos);
   const tablaColumnasAsts = generarTablasColumnas(momentos, reacciones);
 
   const [tablaPisos, ases] = generarTablaPisos(momentos, reacciones);
@@ -569,7 +563,7 @@ function generarTablasIteraciones(event) {
   tablasCalculos.append('<h3>Tabla de Resultados</h3>');
   tablasCalculos.append('<br>');
   tablasCalculos.append(tablaResultados);
-  $.LoadingOverlay('hide');
+  // $.LoadingOverlay('hide');
 }
 
 function generarTablaResultados(ases) {
@@ -622,6 +616,8 @@ function generarTablaPisos(momentos, reacciones) {
   tabla.addClass('table');
   tabla.addClass('table-striped');
   tabla.addClass('table-bordered');
+  tabla.addClass('table-hover');
+  tabla.addClass('table-dark');
   const tbody = $('<tbody>');
 
   const mfsVigas = _.filter(data.mfs, e => _.startsWith(e.tipoElemento, 'vg'));
@@ -674,14 +670,13 @@ function generarTablaPisos(momentos, reacciones) {
       let parteII = 0;
 
       let suma = 0;
-      // =IF((($B$2*C135*(C135/2))) < 0;0;(($B$2*C135*(C135/2)))) + IF(($C$3*(C135-($D$3/2)))<0;0;($C$3*(C135-($D$3/2)))) + (-$C$116*C135) + $C$115
       if (mf.cargaRepartida) {
         b2 = mf.cargaRepartida;
         suma += b2 * longitud * (longitud / 2) < 0 ? 0 : b2 * longitud * (longitud / 2);
       }
 
       if (mf.cargasPuntuales.length) {
-        for(const carga of mf.cargasPuntuales) {
+        for (const carga of mf.cargasPuntuales) {
           if (!carga.esExcentrica) {
             suma += carga.valor * (longitud - (mf.longitud / 2)) < 0 ? 0 : carga.valor * (longitud - (mf.longitud / 2));
           } else {
@@ -691,7 +686,7 @@ function generarTablaPisos(momentos, reacciones) {
         }
       }
       //  (-$C$116*C135) + $C$115
-      suma += momentos[reverseString(e)];
+      suma += momentos[e];
       parteI = suma;
       momentoFila.append(`<td class="centered-cell">${suma.toFixed(8)}</td>`);
 
@@ -704,26 +699,46 @@ function generarTablaPisos(momentos, reacciones) {
       }
 
       if (mf.cargasPuntuales.length) {
-        for(const carga of mf.cargasPuntuales) {
+        for (const carga of mf.cargasPuntuales) {
           if (!carga.esExcentrica) {
             suma += carga.valor * (longitud - (mf.longitud / 2)) < 0 ? 0 : carga.valor * (longitud - (mf.longitud / 2));
           } else {
-            // IF(($C$11*(G135-($E$11)))<0;0;($C$11*(G135-($E$11))))
             suma += carga.valor * (longitud - carga.longitudIzquierda) < 0 ? 0 : carga.valor * (longitud - carga.longitudIzquierda);
           }
         }
       }
-      //  (-$C$116*C135) + $C$115
       suma += momentos[reverseString(e)];
       suma += (-reacciones[e]['segundaLetra'] * longitud);
       parteII = suma;
       momentoFila.append(`<td class="centered-cell">${suma.toFixed(8)}</td>`);
 
-      momentoLuzFila.append(`<td class="centered-cell" colspan="2">${mf.longitud / 2}</td>`);
-      rnLuzFila.append(`<td class="centered-cell" colspan="2">${0}</td>`);
-      pcalculadoLuzFila.append(`<td class="centered-cell" colspan="2">${0}</td>`);
+      longitud = mf.longitud / 2;
+      suma = 0;
+
+      if (mf.cargaRepartida) {
+        b2 = mf.cargaRepartida;
+        suma += b2 * longitud * (longitud / 2) < 0 ? 0 : b2 * longitud * (longitud / 2);
+      }
+
+      if (mf.cargasPuntuales.length) {
+        for (const carga of mf.cargasPuntuales) {
+          if (!carga.esExcentrica) {
+            suma += carga.valor * (longitud - (longitud / 2)) < 0 ? 0 : carga.valor * (longitud - (longitud / 2));
+          } else {
+            suma += carga.valor * (longitud - carga.longitudIzquierda) < 0 ? 0 : carga.valor * (longitud - carga.longitudIzquierda);
+          }
+        }
+      }
+
+      momentoLuzFila.append(`<td class="centered-cell" colspan="2">${suma.toFixed(8)}</td>`);
 
       let elemento = _.find(data.elementos, g => `${g.tipo}-${g.id} === ${e.tipoElemento}`);
+      const rnLuz = suma / (0.9 * elemento.B * (elemento.H - 0.05));
+
+      rnLuzFila.append(`<td class="centered-cell" colspan="2">${rnLuz.toFixed(3)}</td>`);
+
+      const pcalculados = rnLuz * elemento.B * (elemento.H - 0.05);
+      pcalculadoLuzFila.append(`<td class="centered-cell" colspan="2">${pcalculados.toFixed(3)}</td>`);
 
       let rnNodosParteI = Math.abs(parteI) / (0.9 * elemento.B * (elemento.H - 0.05));
       rnNodosFila.append(`<td class="centered-cell">${rnNodosParteI.toFixed(8)}</td>`);
@@ -790,25 +805,40 @@ function generarTablasColumnas(momentos, reacciones) {
 
     for (const e of mfsSinRepeticion) {
       const letras = e.split('-');
+      const primeraLetra = letras[0];
+      const segundaLetra = letras[1];
       encabezadoFila.append(`<td colspan="2" class="centered-cell">${k}</td>`);
       subEncabezadoFila.append(_.map(letras, f => `<td class="centered-cell">${f}</td>`).join(''));
 
-      let suma = Math.abs(_.sum((reacciones[e] ? [reacciones[e]['primeraLetra']] : [0])) +
-                  _.sum((reacciones[e] ? [reacciones[e]['segundaLetra']] : [0])));
-      if (suma === 0) {
-        for (const r of _.keys(reacciones)) {
-          const reaccionActual = reacciones[r];
-          if (r[0] === e[0] || r[2] === e[0] ||
-              r[0] === e[2] || r[2] === e[2]) {
-            if (r[0] === e[0] || r[0] === e[2]) {
-              suma += Math.abs(reacciones[r]['primeraLetra']);
-            } else if (r[2] === e[0] || r[2] === e[2]) {
-              suma += Math.abs(reacciones[r]['segundaLetra']);
-            }
-          }
+      let suma = 0;
+      // if (suma === 0) {
+      //   for (const r of _.keys(reacciones)) {
+      //     const reaccionActual = reacciones[r];
+      //     if (r[0] === e[0] || r[2] === e[0] ||
+      //       r[0] === e[2] || r[2] === e[2]) {
+      //       if (r[0] === e[0] || r[0] === e[2]) {
+      //         suma += Math.abs(reacciones[r]['primeraLetra']);
+      //       } else if (r[2] === e[0] || r[2] === e[2]) {
+      //         suma += Math.abs(reacciones[r]['segundaLetra']);
+      //       }
+      //     }  
+      //   }
+      // }
+
+      for(const reaccion of _.keys(reacciones)) {
+        const reaccionActual = reacciones[reaccion];
+        const letrasReaccion = reaccion.split('-');
+        const primeraLetraReaccion = letrasReaccion[0];
+        const segundaLetraReaccion = letrasReaccion[1];
+
+        if (primeraLetraReaccion === primeraLetra) {
+          suma += reaccionActual['primeraLetra'];
+        } else if (segundaLetraReaccion === primeraLetra) {
+          suma += reaccionActual['segundaLetra'];
         }
       }
 
+      suma = Math.abs(suma);
       pUltimoFila.append(`<td class="centered-cell" colspan="2">${suma.toFixed(2)}</td>`);
       resistenciaAxialFila.append(`<td class="centered-cell" colspan="2">${(suma / 0.75).toFixed(2)}</td>`);
 
@@ -825,10 +855,11 @@ function generarTablasColumnas(momentos, reacciones) {
 
       loadData(`${url}`, function (response) {
         console.log(response);
-        const result = response.result;
+        let result = response.result;
         ecuacionFila.append(`<td class="centered-cell" colspan="2">0</td>`);
         astM2Fila.append(`<td class="centered-cell" colspan="2">${(result).toFixed(8)}</td>`);
-        astCm2Fila.append(`<td class="centered-cell" colspan="2">${(result * 10000).toFixed(8)}</td>`);
+        result = _.max([result * 10000, 0.01 * elemento.B * elemento.H * 100 * 100]);
+        astCm2Fila.append(`<td class="centered-cell" colspan="2">${(result).toFixed(2)}</td>`);
       }, function (error) {
         console.log(error);
       });
@@ -843,10 +874,12 @@ function generarTablasColumnas(momentos, reacciones) {
  * @param momentos Momentos calculados.
  * @returns {*|jQuery|HTMLElement} Tabla con los datos de las vigas.
  */
-function generarTablaVigas(momentos) {
+function generarTablaReacciones(momentos) {
   const tabla = $('<table>');
   tabla.addClass('table');
   tabla.addClass('table-striped');
+  tabla.addClass('table-bordered');
+  tabla.addClass('table-dark');
   const tbody = $('<tbody>');
 
   let mfsVigas = _.filter(data.mfs, e => _.startsWith(e.tipoElemento, 'vg'));
@@ -862,10 +895,15 @@ function generarTablaVigas(momentos) {
   WKnFila.append(`<td class="centered-cell">W</td>`);
   let pKnFila = $('<tr>');
   pKnFila.append(`<td class="centered-cell">P</td>`);
-  let peFila1 = $('<tr>');
-  peFila1.append(`<td class="centered-cell">Pe</td>`);
-  let peFila2 = $('<tr>');
-  peFila2.append(`<td class="centered-cell">Pe</td>`);
+
+  const cantidadMaximaCargasPuntuales = contarCantidadMaximaDeCargasExcentricas(data.mfs);
+  let peFilas = [];
+  _.range(1, cantidadMaximaCargasPuntuales + 1).forEach(e => {
+    const fila = $('<tr>');
+    fila.append(`<td class="centered-cell">Pe${e}</td>`);
+    peFilas.push(fila);
+  });
+
   let momentosKnFila = $('<tr>');
   momentosKnFila.append(`<td class="centered-cell">Momento</td>`);
   let filaReacciones = $('<tr>');
@@ -909,61 +947,66 @@ function generarTablaVigas(momentos) {
         }
 
         if (mf1.cargasPuntuales.length) {
-          if (mf1.cargasPuntuales[0].esExcentrica) {
-            resultado1 = mf1.cargasPuntuales[0].valor / mf1.longitud * mf1.cargasPuntuales[0].longitudIzquierda
-            sumaPrimeraColumna += resultado1;
-            pKnFila.append(`<td class="centered-cell">${resultado1}</td>`);
+          if (sonTodasCargasExcentricas(mf1.cargasPuntuales)) {
+            pKnFila.append(`<td class="centered-cell">${0}</td>`);
           } else {
-            resultado1 = mf1.cargasPuntuales[0].valor / 2;
+            const cargaPuntualCentrica = _.find(mf1.cargasPuntuales, f => !f.esExcentrica);
+            resultado1 = cargaPuntualCentrica.valor / 2;
             sumaPrimeraColumna += resultado1;
             pKnFila.append(`<td class="centered-cell">${resultado1}</td>`);
           }
 
-          if (mf1.cargasPuntuales[0].esExcentrica) {
-            resultado1 = mf1.cargasPuntuales[0].valor / mf1.longitud * mf1.cargasPuntuales[0].longitudDerecha;
-            sumaPrimeraColumna += resultado1;
-            peFila1.append(`<td class="centered-cell">${resultado1}</td>`);
-
-            resultado1 = mf1.cargasPuntuales[0].valor / mf1.longitud * mf1.cargasPuntuales[0].longitudDerecha;
-            sumaPrimeraColumna += resultado1;
-            peFila2.append(`<td class="centered-cell">${resultado1}</td>`);
-          } else {
-            peFila1.append(`<td class="centered-cell">0</td>`);
+          let contadorCargasPuntuales = 0;
+          for (const fila of peFilas) {
+            if (contadorCargasPuntuales < mf1.cargasPuntuales.length) {
+              const cargaPuntual = mf1.cargasPuntuales[contadorCargasPuntuales];
+              if (cargaPuntual.esExcentrica) {
+                resultado1 = cargaPuntual.valor / mf1.longitud * cargaPuntual.longitudDerecha;
+                sumaPrimeraColumna += resultado1;
+                fila.append(`<td class="centered-cell">${resultado1}</td>`);
+              } else {
+                fila.append(`<td class="centered-cell">${0}</td>`);
+              }
+            } else {
+              fila.append(`<td class="centered-cell">${0}</td>`);
+            }
+            ++contadorCargasPuntuales;
           }
         } else {
           pKnFila.append(`<td class="centered-cell">0</td>`);
-          peFila1.append(`<td class="centered-cell">0</td>`);
-          peFila2.append(`<td class="centered-cell">0</td>`);
+          peFilas.forEach(e => e.append(`<td class="centered-cell">0</td>`));
         }
 
         if (mf2.cargasPuntuales.length) {
-          if (mf1.cargasPuntuales[0].esExcentrica) {
-            resultado2 = mf2.cargasPuntuales[0].valor / mf2.longitud * mf2.cargasPuntuales[0].longitudDerecha;
-            sumaSegundaColumna += resultado2;
-
-            pKnFila.append(`<td class="centered-cell">${resultado2}</td>`);
+          if (sonTodasCargasExcentricas(mf2.cargasPuntuales)) {
+            pKnFila.append(`<td class="centered-cell">${0}</td>`);
           } else {
-            resultado2 = mf2.cargasPuntuales[0].valor / 2;
+            const cargaPuntualCentrica = _.find(mf2.cargasPuntuales, f => !f.esExcentrica);
+            resultado2 = cargaPuntualCentrica.valor / 2;
             sumaSegundaColumna += resultado2;
 
             pKnFila.append(`<td class="centered-cell">${resultado2}</td>`);
           }
 
-          if (mf2.cargasPuntuales[0].esExcentrica) {
-            resultado2 = mf2.cargasPuntuales[0].valor * mf2.longitud * mf2.cargasPuntuales[0].longitudDerecha;
-            sumaSegundaColumna += resultado2;
-            peFila1.append(`<td class="centered-cell">${resultado2}</td>`);
-
-            resultado2 = mf1.cargasPuntuales[0].valor / mf1.longitud * mf1.cargasPuntuales[0].longitudDerecha;
-            sumaSegundaColumna += resultado2;
-            peFila2.append(`<td class="centered-cell">${resultado2}</td>`);
-          } else {
-            peFila1.append(`<td class="centered-cell">0</td>`);
+          let contadorCargasPuntuales = 0;
+          for (const fila of peFilas) {
+            if (contadorCargasPuntuales < mf1.cargasPuntuales.length) {
+              const cargaPuntual = mf1.cargasPuntuales[contadorCargasPuntuales];
+              if (cargaPuntual.esExcentrica) {
+                resultado1 = cargaPuntual.valor / mf2.longitud * cargaPuntual.longitudIzquierda;
+                sumaSegundaColumna += resultado1;
+                fila.append(`<td class="centered-cell">${resultado1}</td>`);
+              } else {
+                fila.append(`<td class="centered-cell">${0}</td>`);
+              }
+            } else {
+              fila.append(`<td class="centered-cell">${0}</td>`);
+            }
+            ++contadorCargasPuntuales;
           }
         } else {
+          peFilas.forEach(e => e.append(`<td class="centered-cell">0</td>`));
           pKnFila.append(`<td class="centered-cell">0</td>`);
-          peFila1.append(`<td class="centered-cell">0</td>`);
-          peFila2.append(`<td class="centered-cell">0</td>`);
         }
 
         const momento1 = momentos[e];
@@ -975,11 +1018,11 @@ function generarTablaVigas(momentos) {
         resultado2 = -resultado1;
         sumaSegundaColumna += resultado2;
 
-        momentosKnFila.append(`<td>${resultado1}</td>`);
-        momentosKnFila.append(`<td>${resultado2}</td>`);
+        momentosKnFila.append(`<td>${resultado1.toFixed(2)}</td>`);
+        momentosKnFila.append(`<td>${resultado2.toFixed(2)}</td>`);
 
-        filaReacciones.append(`<td>${sumaPrimeraColumna}</td>`);
-        filaReacciones.append(`<td>${sumaSegundaColumna}</td>`);
+        filaReacciones.append(`<td>${sumaPrimeraColumna.toFixed(2)}</td>`);
+        filaReacciones.append(`<td>${sumaSegundaColumna.toFixed(2)}</td>`);
 
         reacciones[e]['primeraLetra'] = sumaPrimeraColumna;
         reacciones[e]['segundaLetra'] = sumaSegundaColumna;
@@ -991,8 +1034,7 @@ function generarTablaVigas(momentos) {
   tbody.append(letrasFila);
   tbody.append(WKnFila);
   tbody.append(pKnFila);
-  tbody.append(peFila1);
-  tbody.append(peFila2);
+  peFilas.forEach(f => tbody.append(f));
   tbody.append(momentosKnFila);
   tbody.append(filaReacciones);
 

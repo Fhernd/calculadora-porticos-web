@@ -89,3 +89,12 @@ function loadData(url, successCallback, errorCallback) {
     }).done(successCallback).fail(errorCallback);
   });
 }
+
+function sonTodasCargasExcentricas(cargasPuntuales) {
+  return cargasPuntuales.every(cargaPuntual => cargaPuntual.esExcentrica);
+}
+
+function contarCantidadMaximaDeCargasExcentricas(mfs) {
+  const cargasPuntualesElementos = mfs.map(e => e.cargasPuntuales.length);
+  return Math.max(...cargasPuntualesElementos);
+}
