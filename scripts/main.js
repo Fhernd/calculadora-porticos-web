@@ -758,7 +758,9 @@ function generarTablaPisos(momentos, reacciones) {
       let asParteII = pCalculadoNodosParteII * elemento.B * (elemento.H - 0.05);
       asFila.append(`<td class="centered-cell">${asParteII.toFixed(8)}</td>`);
 
-      asLuzfila.append(`<td class="centered-cell" colspan="2">${0}</td>`);
+      const asLuz = pcalculados * elemento.B * (elemento.H - 0.05);
+
+      asLuzfila.append(`<td class="centered-cell" colspan="2">${asLuz.toFixed(2)}</td>`);
 
       ases[e] = {
         primeraColumna: asParteI,
@@ -821,7 +823,7 @@ function generarTablasColumnas(momentos, reacciones) {
       //       } else if (r[2] === e[0] || r[2] === e[2]) {
       //         suma += Math.abs(reacciones[r]['segundaLetra']);
       //       }
-      //     }  
+      //     }
       //   }
       // }
 
@@ -858,8 +860,8 @@ function generarTablasColumnas(momentos, reacciones) {
         let result = response.result;
         ecuacionFila.append(`<td class="centered-cell" colspan="2">0</td>`);
         astM2Fila.append(`<td class="centered-cell" colspan="2">${(result).toFixed(8)}</td>`);
-        result = _.max([result * 10000, 0.01 * elemento.B * elemento.H * 100 * 100]);
-        astCm2Fila.append(`<td class="centered-cell" colspan="2">${(result).toFixed(2)}</td>`);
+        // result = _.max([result * 10000, 0.01 * elemento.B * elemento.H * 100 * 100]);
+        astCm2Fila.append(`<td class="centered-cell" colspan="2">${(result * 10000).toFixed(2)}</td>`);
       }, function (error) {
         console.log(error);
       });
