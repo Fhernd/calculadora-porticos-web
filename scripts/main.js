@@ -560,9 +560,9 @@ function generarTablasIteraciones(event) {
   tablasCalculos.append(tablaPisos);
   tablasCalculos.append('<br>');
   tablasCalculos.append('<br>');
-  tablasCalculos.append('<h3>Tabla de Resultados</h3>');
-  tablasCalculos.append('<br>');
-  tablasCalculos.append(tablaResultados);
+  // tablasCalculos.append('<h3>Tabla de Resultados</h3>');
+  // tablasCalculos.append('<br>');
+  // tablasCalculos.append(tablaResultados);
   // $.LoadingOverlay('hide');
 }
 
@@ -617,7 +617,6 @@ function generarTablaPisos(momentos, reacciones) {
   tabla.addClass('table-striped');
   tabla.addClass('table-bordered');
   tabla.addClass('table-hover');
-  tabla.addClass('table-dark');
   const tbody = $('<tbody>');
 
   const mfsVigas = _.filter(data.mfs, e => _.startsWith(e.tipoElemento, 'vg'));
@@ -688,7 +687,7 @@ function generarTablaPisos(momentos, reacciones) {
       //  (-$C$116*C135) + $C$115
       suma += momentos[e];
       parteI = suma;
-      momentoFila.append(`<td class="centered-cell">${suma.toFixed(8)}</td>`);
+      momentoFila.append(`<td class="centered-cell">${suma.toFixed(3)}</td>`);
 
       longitud = mf.longitud;
       suma = 0;
@@ -710,7 +709,7 @@ function generarTablaPisos(momentos, reacciones) {
       suma += momentos[reverseString(e)];
       suma += (-reacciones[e]['segundaLetra'] * longitud);
       parteII = suma;
-      momentoFila.append(`<td class="centered-cell">${suma.toFixed(8)}</td>`);
+      momentoFila.append(`<td class="centered-cell">${suma.toFixed(3)}</td>`);
 
       longitud = mf.longitud / 2;
       suma = 0;
@@ -730,18 +729,19 @@ function generarTablaPisos(momentos, reacciones) {
         }
       }
 
-      momentoLuzFila.append(`<td class="centered-cell" colspan="2">${suma.toFixed(8)}</td>`);
+      momentoLuzFila.append(`<td class="centered-cell" colspan="2">${(-suma).toFixed(2)}</td>`);
+      const momentoLuz = suma;
 
       let elemento = _.find(data.elementos, g => `${g.tipo}-${g.id} === ${e.tipoElemento}`);
-      const rnLuz = suma / (0.9 * elemento.B * (elemento.H - 0.05));
 
+      const rnLuz = Math.abs(momentoLuz / (0.9 * elemento.B * (elemento.H - 0.05)));
       rnLuzFila.append(`<td class="centered-cell" colspan="2">${rnLuz.toFixed(3)}</td>`);
 
-      const pcalculados = rnLuz * elemento.B * (elemento.H - 0.05);
-      pcalculadoLuzFila.append(`<td class="centered-cell" colspan="2">${pcalculados.toFixed(3)}</td>`);
+      const pCalculadosLuz = ((0.85 * data.Fc) / data.Fy) * (1-(Math.sqrt(1-((2 * rnLuz) / (0.85 * 1000 * data.Fc)))));
+      pcalculadoLuzFila.append(`<td class="centered-cell" colspan="2">${pCalculadosLuz.toFixed(3)}</td>`);
 
       let rnNodosParteI = Math.abs(parteI) / (0.9 * elemento.B * (elemento.H - 0.05));
-      rnNodosFila.append(`<td class="centered-cell">${rnNodosParteI.toFixed(8)}</td>`);
+      rnNodosFila.append(`<td class="centered-cell">${rnNodosParteI.toFixed(3)}</td>`);
 
       let pCalculadoNodosParteI = (0.85 * data.Fc / data.Fy) * (1 - Math.sqrt(1 - (2 * rnNodosParteI / (0.85 * 1000 * data.Fc))));
       pCalculosNodosFila.append(`<td class="centered-cell">${pCalculadoNodosParteI.toFixed(8)}</td>`);
@@ -758,9 +758,9 @@ function generarTablaPisos(momentos, reacciones) {
       let asParteII = pCalculadoNodosParteII * elemento.B * (elemento.H - 0.05);
       asFila.append(`<td class="centered-cell">${asParteII.toFixed(8)}</td>`);
 
-      const asLuz = pcalculados * elemento.B * (elemento.H - 0.05);
+      const asLuz = pCalculadosLuz * elemento.B * (elemento.H - 0.05);
 
-      asLuzfila.append(`<td class="centered-cell" colspan="2">${asLuz.toFixed(2)}</td>`);
+      asLuzfila.append(`<td class="centered-cell" colspan="2">${asLuz.toFixed(10)}</td>`);
 
       ases[e] = {
         primeraColumna: asParteI,
@@ -813,19 +813,6 @@ function generarTablasColumnas(momentos, reacciones) {
       subEncabezadoFila.append(_.map(letras, f => `<td class="centered-cell">${f}</td>`).join(''));
 
       let suma = 0;
-      // if (suma === 0) {
-      //   for (const r of _.keys(reacciones)) {
-      //     const reaccionActual = reacciones[r];
-      //     if (r[0] === e[0] || r[2] === e[0] ||
-      //       r[0] === e[2] || r[2] === e[2]) {
-      //       if (r[0] === e[0] || r[0] === e[2]) {
-      //         suma += Math.abs(reacciones[r]['primeraLetra']);
-      //       } else if (r[2] === e[0] || r[2] === e[2]) {
-      //         suma += Math.abs(reacciones[r]['segundaLetra']);
-      //       }
-      //     }
-      //   }
-      // }
 
       for(const reaccion of _.keys(reacciones)) {
         const reaccionActual = reacciones[reaccion];
@@ -881,7 +868,6 @@ function generarTablaReacciones(momentos) {
   tabla.addClass('table');
   tabla.addClass('table-striped');
   tabla.addClass('table-bordered');
-  tabla.addClass('table-dark');
   const tbody = $('<tbody>');
 
   let mfsVigas = _.filter(data.mfs, e => _.startsWith(e.tipoElemento, 'vg'));
